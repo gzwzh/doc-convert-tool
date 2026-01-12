@@ -1,0 +1,29 @@
+appId: com.converttool.app
+productName: ConvertTool
+directories:
+  output: release/${version}
+  buildResources: build
+files:
+  - from: .
+    filter:
+      - package.json
+      - electron/**/*
+  - from: frontend/dist
+    to: frontend/dist
+    filter:
+      - "**/*"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  artifactName: installer/${productName}-Setup-${version}.${ext}
+portable:
+  artifactName: portable/${productName}-Portable-${version}.${ext}
