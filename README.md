@@ -1,6 +1,14 @@
 # 项目开发指南
 
-简单、高效的在线文件格式转换工具集（Electron + React + Python 版）。
+简单、高效的桌面端文件格式转换工具集。
+
+## 技术栈说明
+
+本项目需采用以下主流技术栈构建：
+
+-   **外壳框架**：[Electron](https://www.electronjs.org/) (负责跨平台桌面环境支持与打包)
+-   **前端界面**：[React](https://reactjs.org/) + [Vite](https://vitejs.dev/) (提供极速的开发体验与响应式 UI)
+-   **后端逻辑**：[Python](https://www.python.org/) (处理高性能的文件转换、算法与核心业务逻辑)
 
 ## 项目架构
 
