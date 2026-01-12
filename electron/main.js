@@ -1,6 +1,5 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
-const isDev = require('electron-is-dev');
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -13,12 +12,11 @@ function createWindow() {
     },
   });
 
-  if (isDev) {
+  if (app.isPackaged) {
+    mainWindow.loadFile(path.join(__dirname, '../frontend/dist/index.html'));
+  } else {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
-  } else {
-    // In production, load the built index.html from frontend/dist
-    mainWindow.loadFile(path.join(__dirname, '../frontend/dist/index.html'));
   }
 }
 

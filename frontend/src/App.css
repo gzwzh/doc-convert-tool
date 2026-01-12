@@ -269,59 +269,67 @@ body {
   border-color: #93c5fd;
 }
 
-.card-header {
+.card-icon-wrapper {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
 }
 
-.format-icon {
+.file-icon {
   width: 44px;
   height: 44px;
-  border: 1px solid #fee2e2;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-weight: 800;
   font-size: 11px;
   background: #fff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 
-.format-source {
+.file-icon.source {
   color: #ef4444;
-  line-height: 1.1;
+  border-color: #fee2e2;
 }
 
-.format-target {
+.file-icon.target {
   color: #3b82f6;
-  line-height: 1.1;
+  border-color: #dbeafe;
 }
 
-.tool-info {
-  flex: 1;
-  margin-left: 12px;
+.arrow-icon {
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: bold;
 }
 
-.tool-title {
-  font-size: 15px;
+.card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-title {
+  font-size: 16px;
   font-weight: 700;
-  margin-bottom: 6px;
   color: var(--text-primary);
 }
 
-.tool-badge {
-  display: inline-flex;
-  font-size: 9px;
+.card-tags {
+  display: flex;
+  gap: 6px;
+}
+
+.tag {
+  font-size: 10px;
   font-weight: 700;
-  color: #3b82f6;
-  background-color: #eff6ff;
-  padding: 3px 8px;
-  border-radius: 12px;
+  color: var(--primary-color);
+  background-color: var(--active-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .card-desc {

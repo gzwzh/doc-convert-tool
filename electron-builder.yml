@@ -24,6 +24,7 @@ nsis:
   oneClick: false
   perMachine: true
   allowToChangeInstallationDirectory: true
+  unicode: true
   artifactName: installer/${productName}-Setup-${version}.${ext}
 portable:
   artifactName: portable/${productName}-Portable-${version}.${ext}

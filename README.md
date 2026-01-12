@@ -62,6 +62,8 @@ npm run build
 
 本项目提供了快捷命令来更新版本号（会自动修改 `package.json`）：
 
+注意：必须先提交所有变更到 Git 仓库，才能更新版本号，否则会报错。
+
 - **补丁版本 (Patch)**: `1.0.0` -> `1.0.1`
     ```bash
     npm run version:patch
