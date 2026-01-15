@@ -67,7 +67,7 @@ function ToolPage() {
       {/* Top Navigation */}
       <nav className="top-nav">
         <div className="nav-left">
-          <div className="nav-logo-placeholder">LOGO区域</div>
+          <div className="nav-logo-placeholder">LOGO 区域</div>
           <button className="nav-back-btn" onClick={() => navigate('/')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round"/>
@@ -78,7 +78,7 @@ function ToolPage() {
         
         <div className="nav-right">
           <div className="ad-banner-top">
-            AD (4:1)
+            广告 (4:1)
           </div>
           <button className="login-btn">登录</button>
         </div>
@@ -101,7 +101,7 @@ function ToolPage() {
           
           <div className="sidebar-footer">
             <div className="ad-banner-sidebar">
-              AD (2:3)
+              广告 (2:3)
             </div>
           </div>
         </aside>
@@ -123,7 +123,7 @@ function ToolPage() {
                       </div>
                       <div className="tool-info">
                         <div className="tool-title">{tool}</div>
-                        <span className="tool-badge">{source} TOOLS</span>
+                        <span className="tool-badge">{source} 工具</span>
                       </div>
                     </div>
                     <div className="card-desc">

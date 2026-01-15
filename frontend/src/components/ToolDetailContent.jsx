@@ -24,20 +24,20 @@ function ToolDetailContent({ toolName, onBack }) {
   const [convertOptions, setConvertOptions] = useState({
     quality: 85,
     backgroundColor: '#ffffff',
-    csvDelimiter: 'Comma (,)',
+    csvDelimiter: '逗号 (,)',
     yamlIndent: 2,
-    orientation: 'Landscape',
-    pdfPageSelection: 'All Pages',
+    orientation: '横向',
+    pdfPageSelection: '所有页面',
     animationDelay: 100,
     loopAnimation: true,
     speechSpeed: 1.0,
     speechPitch: 1.0,
-    speechLanguage: 'English',
+    speechLanguage: '英语',
     pageSize: 'A4'
   });
   const [htmlOptions, setHtmlOptions] = useState({
     enablePreview: false,
-    cssHandling: 'Preserve All CSS',
+    cssHandling: '保留所有 CSS',
     compressCss: false,
     customCss: '',
     removeScripts: true,
@@ -45,7 +45,7 @@ function ToolDetailContent({ toolName, onBack }) {
     compressHtml: false,
     removeEmptyTags: false,
     pageSize: 'A4',
-    orientation: 'Portrait'
+    orientation: '纵向'
   });
 
   const toggleSection = (section) => {
@@ -229,7 +229,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 <circle cx="16" cy="12" r="2.5" fill="#00a3ff" stroke="none" />
                 <circle cx="10" cy="18" r="2.5" fill="#00a3ff" stroke="none" />
               </svg>
-              <h3 className="options-title">Conversion Options</h3>
+              <h3 className="options-title">转换选项</h3>
             </div>
           <div className="options-list">
             {source === 'HTML' ? (
@@ -237,7 +237,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {/* Preview Options */}
                 <div className={`option-group ${expandedSections.preview ? 'expanded' : ''}`}>
                   <div className="option-group-header" onClick={() => toggleSection('preview')}>
-                    <span>Preview Options</span>
+                    <span>预览选项</span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: expandedSections.preview ? 'rotate(180deg)' : 'rotate(0)' }}>
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
@@ -250,14 +250,14 @@ function ToolDetailContent({ toolName, onBack }) {
                           checked={htmlOptions.enablePreview}
                           onChange={(e) => setHtmlOptions({...htmlOptions, enablePreview: e.target.checked})}
                         />
-                        <span>Enable Preview</span>
+                        <span>启用预览</span>
                       </label>
                       <button className="preview-html-btn">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                           <circle cx="12" cy="12" r="3" />
                         </svg>
-                        Preview HTML
+                        预览 HTML
                       </button>
                     </div>
                   )}
@@ -266,7 +266,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {/* CSS Options */}
                 <div className={`option-group ${expandedSections.css ? 'expanded' : ''}`}>
                   <div className="option-group-header" onClick={() => toggleSection('css')}>
-                    <span>CSS Options</span>
+                    <span>CSS 选项</span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: expandedSections.css ? 'rotate(180deg)' : 'rotate(0)' }}>
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
@@ -274,14 +274,14 @@ function ToolDetailContent({ toolName, onBack }) {
                   {expandedSections.css && (
                     <div className="option-group-content">
                       <div className="sub-option">
-                        <label>CSS Handling</label>
+                        <label>CSS 处理</label>
                         <select 
                           value={htmlOptions.cssHandling}
                           onChange={(e) => setHtmlOptions({...htmlOptions, cssHandling: e.target.value})}
                         >
-                          <option>Preserve All CSS</option>
-                          <option>Inline CSS</option>
-                          <option>Remove CSS</option>
+                          <option>保留所有 CSS</option>
+                          <option>内联 CSS</option>
+                          <option>移除 CSS</option>
                         </select>
                       </div>
                       <label className="checkbox-label">
@@ -290,12 +290,12 @@ function ToolDetailContent({ toolName, onBack }) {
                           checked={htmlOptions.compressCss}
                           onChange={(e) => setHtmlOptions({...htmlOptions, compressCss: e.target.checked})}
                         />
-                        <span>Compress CSS</span>
+                        <span>压缩 CSS</span>
                       </label>
                       <div className="sub-option">
-                        <label>Custom CSS</label>
+                        <label>自定义 CSS</label>
                         <textarea 
-                          placeholder="Enter your custom CSS here..."
+                          placeholder="在此输入您的自定义 CSS..."
                           value={htmlOptions.customCss}
                           onChange={(e) => setHtmlOptions({...htmlOptions, customCss: e.target.value})}
                           rows={4}
@@ -308,7 +308,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {/* Cleanup Options */}
                 <div className={`option-group ${expandedSections.cleanup ? 'expanded' : ''}`}>
                   <div className="option-group-header" onClick={() => toggleSection('cleanup')}>
-                    <span>Cleanup Options</span>
+                    <span>清理选项</span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: expandedSections.cleanup ? 'rotate(180deg)' : 'rotate(0)' }}>
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
@@ -322,7 +322,7 @@ function ToolDetailContent({ toolName, onBack }) {
                             checked={htmlOptions.removeScripts}
                             onChange={(e) => setHtmlOptions({...htmlOptions, removeScripts: e.target.checked})}
                           />
-                          <span>Remove Scripts</span>
+                          <span>移除脚本</span>
                         </label>
                         <label className="checkbox-label">
                           <input 
@@ -330,7 +330,7 @@ function ToolDetailContent({ toolName, onBack }) {
                             checked={htmlOptions.removeComments}
                             onChange={(e) => setHtmlOptions({...htmlOptions, removeComments: e.target.checked})}
                           />
-                          <span>Remove HTML Comments</span>
+                          <span>移除 HTML 注释</span>
                         </label>
                         <label className="checkbox-label">
                           <input 
@@ -338,7 +338,7 @@ function ToolDetailContent({ toolName, onBack }) {
                             checked={htmlOptions.compressHtml}
                             onChange={(e) => setHtmlOptions({...htmlOptions, compressHtml: e.target.checked})}
                           />
-                          <span>Compress HTML</span>
+                          <span>压缩 HTML</span>
                         </label>
                         <label className="checkbox-label">
                           <input 
@@ -346,7 +346,7 @@ function ToolDetailContent({ toolName, onBack }) {
                             checked={htmlOptions.removeEmptyTags}
                             onChange={(e) => setHtmlOptions({...htmlOptions, removeEmptyTags: e.target.checked})}
                           />
-                          <span>Remove Empty Tags</span>
+                          <span>移除空标签</span>
                         </label>
                       </div>
                     </div>
@@ -357,11 +357,11 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'PDF' && (
                   <div className="option-group expanded">
                     <div className="option-group-header">
-                      <span>Page Settings</span>
+                      <span>页面设置</span>
                     </div>
                     <div className="option-group-content">
                       <div className="sub-option">
-                        <label>Page Size</label>
+                        <label>页面大小</label>
                         <select 
                           value={htmlOptions.pageSize}
                           onChange={(e) => setHtmlOptions({...htmlOptions, pageSize: e.target.value})}
@@ -372,13 +372,13 @@ function ToolDetailContent({ toolName, onBack }) {
                         </select>
                       </div>
                       <div className="sub-option">
-                        <label>Orientation</label>
+                        <label>方向</label>
                         <select 
                           value={htmlOptions.orientation}
                           onChange={(e) => setHtmlOptions({...htmlOptions, orientation: e.target.value})}
                         >
-                          <option>Portrait</option>
-                          <option>Landscape</option>
+                          <option>纵向</option>
+                          <option>横向</option>
                         </select>
                       </div>
                     </div>
@@ -389,11 +389,11 @@ function ToolDetailContent({ toolName, onBack }) {
                 {['GIF', 'JPG', 'PNG', 'WEBP'].includes(target) && (
                   <div className="option-group expanded">
                     <div className="option-group-header">
-                      <span>Image Options</span>
+                      <span>图片选项</span>
                     </div>
                     <div className="option-group-content">
                       <div className="sub-option">
-                        <label>Quality (1-100)</label>
+                        <label>质量 (1-100)</label>
                         <input 
                           type="range" 
                           min="1" 
@@ -405,7 +405,7 @@ function ToolDetailContent({ toolName, onBack }) {
                       </div>
                       
                       <div className="sub-option">
-                        <label>Background Color</label>
+                        <label>背景颜色</label>
                         <div className="color-picker-wrapper">
                           <input 
                             type="color" 
@@ -430,7 +430,7 @@ function ToolDetailContent({ toolName, onBack }) {
                   onClick={() => setIsPdfPagesExpanded(!isPdfPagesExpanded)}
                   style={{ padding: '15px 0', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                 >
-                  <span style={{ fontSize: '15px', color: '#334155', fontWeight: '500' }}>Page Selection</span>
+                  <span style={{ fontSize: '15px', color: '#334155', fontWeight: '500' }}>页面选择</span>
                   <svg 
                     width="14" 
                     height="14" 
@@ -446,7 +446,7 @@ function ToolDetailContent({ toolName, onBack }) {
 
                 {isPdfPagesExpanded && (
                   <div className="sub-option" style={{ marginTop: '20px' }}>
-                    <label style={{ color: '#334155', fontWeight: '600', marginBottom: '8px', display: 'block' }}>Select Pages</label>
+                    <label style={{ color: '#334155', fontWeight: '600', marginBottom: '8px', display: 'block' }}>选择页面</label>
                     <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                       <select 
                         value={convertOptions.pdfPageSelection}
@@ -464,9 +464,9 @@ function ToolDetailContent({ toolName, onBack }) {
                           outline: 'none'
                         }}
                       >
-                        <option>All Pages</option>
-                        <option>Page Range</option>
-                        <option>Specific Pages</option>
+                        <option>所有页面</option>
+                        <option>页面范围</option>
+                        <option>特定页面</option>
                       </select>
                       <svg 
                         width="12" 
@@ -489,7 +489,7 @@ function ToolDetailContent({ toolName, onBack }) {
 
                 {['JPG', 'BMP', 'WEBP'].includes(target) && (
                   <div className="sub-option" style={{ marginTop: '20px' }}>
-                    <label style={{ color: '#334155', fontWeight: '600', marginBottom: '12px', display: 'block' }}>Quality (1-100)</label>
+                    <label style={{ color: '#334155', fontWeight: '600', marginBottom: '12px', display: 'block' }}>质量 (1-100)</label>
                     <input 
                       type="range" 
                       min="1" 
@@ -507,7 +507,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'GIF' && (
                   <>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '600', marginBottom: '8px', display: 'block' }}>Animation Delay (ms)</label>
+                      <label style={{ color: '#334155', fontWeight: '600', marginBottom: '8px', display: 'block' }}>动画延迟 (毫秒)</label>
                       <input 
                         type="number" 
                         value={convertOptions.animationDelay}
@@ -537,7 +537,7 @@ function ToolDetailContent({ toolName, onBack }) {
                           accentColor: '#00a3ff'
                         }}
                       />
-                      <label htmlFor="loop-animation" style={{ color: '#334155', fontWeight: '500', cursor: 'pointer', fontSize: '15px' }}>Loop Animation</label>
+                      <label htmlFor="loop-animation" style={{ color: '#334155', fontWeight: '500', cursor: 'pointer', fontSize: '15px' }}>循环动画</label>
                     </div>
                   </>
                 )}
@@ -547,7 +547,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'SPEECH' && (
                   <div className="speech-options">
                     <div className="sub-option" style={{ marginTop: '10px' }}>
-                      <label style={{ color: '#334155', fontWeight: '600', marginBottom: '12px', display: 'block' }}>Speech Speed</label>
+                      <label style={{ color: '#334155', fontWeight: '600', marginBottom: '12px', display: 'block' }}>语音速度</label>
                       <input 
                         type="range" 
                         min="0.5" 
@@ -563,7 +563,7 @@ function ToolDetailContent({ toolName, onBack }) {
                     </div>
 
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '600', marginBottom: '12px', display: 'block' }}>Speech Pitch</label>
+                      <label style={{ color: '#334155', fontWeight: '600', marginBottom: '12px', display: 'block' }}>语音音调</label>
                       <input 
                         type="range" 
                         min="0.5" 
@@ -579,7 +579,7 @@ function ToolDetailContent({ toolName, onBack }) {
                     </div>
 
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '600', marginBottom: '8px', display: 'block' }}>Speech Language</label>
+                      <label style={{ color: '#334155', fontWeight: '600', marginBottom: '8px', display: 'block' }}>语音语言</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
                           value={convertOptions.speechLanguage}
@@ -598,11 +598,11 @@ function ToolDetailContent({ toolName, onBack }) {
                             boxShadow: '0 0 0 1px rgba(0, 163, 255, 0.1)'
                           }}
                         >
-                          <option>English</option>
-                          <option>Chinese (Mandarin)</option>
-                          <option>Spanish</option>
-                          <option>French</option>
-                          <option>German</option>
+                          <option>英语</option>
+                          <option>中文 (普通话)</option>
+                          <option>西班牙语</option>
+                          <option>法语</option>
+                          <option>德语</option>
                         </select>
                         <svg 
                           width="12" 
@@ -627,7 +627,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'PDF' && (
                   <>
                     <div className="sub-option" style={{ marginTop: '10px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>Page Size</label>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>页面大小</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
                           value={convertOptions.pageSize}
@@ -669,7 +669,7 @@ function ToolDetailContent({ toolName, onBack }) {
                     </div>
 
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>Orientation</label>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>方向</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
                           value={convertOptions.orientation}
@@ -688,8 +688,8 @@ function ToolDetailContent({ toolName, onBack }) {
                             boxShadow: '0 0 0 1px rgba(0, 163, 255, 0.1)'
                           }}
                         >
-                          <option>Portrait</option>
-                          <option>Landscape</option>
+                          <option>纵向</option>
+                          <option>横向</option>
                         </select>
                         <svg 
                           width="12" 
@@ -714,7 +714,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {['JPG', 'PNG'].includes(target) && (
                   <>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>Quality (1-100)</label>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>质量 (1-100)</label>
                       <input 
                         type="range" 
                         min="1" 
@@ -729,7 +729,7 @@ function ToolDetailContent({ toolName, onBack }) {
                     </div>
 
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>Background Color</label>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>背景颜色</label>
                       <div className="color-picker-wrapper" style={{ 
                         width: '56px', 
                         height: '28px', 
@@ -767,7 +767,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'CSV' && (
                   <div className="option-group-content" style={{ padding: '20px' }}>
                     <div className="sub-option">
-                      <label>CSV Delimiter</label>
+                      <label>CSV 分隔符</label>
                       <select 
                         value={convertOptions.csvDelimiter}
                         onChange={(e) => setConvertOptions({...convertOptions, csvDelimiter: e.target.value})}
@@ -779,10 +779,10 @@ function ToolDetailContent({ toolName, onBack }) {
                           paddingRight: '32px'
                         }}
                       >
-                        <option>Comma (,)</option>
-                        <option>Semicolon (;)</option>
-                        <option>Tab</option>
-                        <option>Pipe (|)</option>
+                        <option>逗号 (,)</option>
+                        <option>分号 (;)</option>
+                        <option>制表符 (Tab)</option>
+                        <option>竖线 (|)</option>
                       </select>
                     </div>
                   </div>
@@ -791,7 +791,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'JPG' && (
                   <div className="option-group-content static-options" style={{ padding: '20px' }}>
                     <div className="sub-option">
-                      <label>Image Quality</label>
+                      <label>图片质量</label>
                       <input 
                         type="range" 
                         min="1" 
@@ -806,10 +806,10 @@ function ToolDetailContent({ toolName, onBack }) {
                     
                     <div className="sub-option" style={{ marginTop: '12px' }}>
                       <button 
-                        className={`orientation-toggle ${convertOptions.orientation === 'Landscape' ? 'active' : ''}`}
+                        className={`orientation-toggle ${convertOptions.orientation === '横向' ? 'active' : ''}`}
                         onClick={() => setConvertOptions({
                           ...convertOptions, 
-                          orientation: convertOptions.orientation === 'Landscape' ? 'Portrait' : 'Landscape'
+                          orientation: convertOptions.orientation === '横向' ? '纵向' : '横向'
                         })}
                         style={{
                           width: '44px',
@@ -834,7 +834,7 @@ function ToolDetailContent({ toolName, onBack }) {
                           alignItems: 'center',
                           justifyContent: 'center',
                           backgroundColor: '#f8fafc',
-                          transform: convertOptions.orientation === 'Landscape' ? 'rotate(0deg)' : 'rotate(90deg)',
+                          transform: convertOptions.orientation === '横向' ? 'rotate(0deg)' : 'rotate(90deg)',
                           transition: 'transform 0.2s'
                         }}>
                           <div style={{
@@ -852,7 +852,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'YAML' && (
                   <div className="option-group-content static-options" style={{ padding: '20px' }}>
                     <div className="sub-option">
-                      <label>YAML Indent</label>
+                      <label>YAML 缩进</label>
                       <input 
                         type="range" 
                         min="2" 
@@ -873,7 +873,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'PDF' && (
                   <>
                     <div className="sub-option" style={{ marginTop: '10px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>Background Color</label>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>背景颜色</label>
                       <div className="color-picker-wrapper" style={{ 
                         width: '56px', 
                         height: '28px', 
@@ -904,7 +904,7 @@ function ToolDetailContent({ toolName, onBack }) {
                       </div>
                     </div>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>conv.page_size</label>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>页面大小</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
                           value={convertOptions.pageSize}
@@ -949,7 +949,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'JPG' && (
                   <>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>Quality (1-100)</label>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>质量 (1-100)</label>
                       <input 
                         type="range" 
                         min="1" 
@@ -963,7 +963,7 @@ function ToolDetailContent({ toolName, onBack }) {
                       </div>
                     </div>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>Background Color</label>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>背景颜色</label>
                       <div className="color-picker-wrapper" style={{ 
                         width: '56px', 
                         height: '28px', 
@@ -997,7 +997,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 )}
                 {target === 'CSV' && (
                   <div className="sub-option" style={{ marginTop: '20px' }}>
-                    <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>CSV</label>
+                    <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>CSV 分隔符</label>
                     <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                       <select 
                         value={convertOptions.csvDelimiter}
@@ -1015,10 +1015,10 @@ function ToolDetailContent({ toolName, onBack }) {
                           outline: 'none'
                         }}
                       >
-                        <option>Comma (,)</option>
-                        <option>Semicolon (;)</option>
-                        <option>Tab</option>
-                        <option>Pipe (|)</option>
+                        <option>逗号 (,)</option>
+                        <option>分号 (;)</option>
+                        <option>制表符 (Tab)</option>
+                        <option>竖线 (|)</option>
                       </select>
                       <svg 
                         width="12" 
@@ -1040,7 +1040,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 )}
                 {target === 'YAML' && (
                   <div className="sub-option" style={{ marginTop: '20px' }}>
-                    <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>YAML Indent</label>
+                    <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>YAML 缩进</label>
                     <input 
                       type="range" 
                       min="2" 
@@ -1061,7 +1061,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {!['TXT', 'EPUB'].includes(target) && (
                   <div className="option-group-content static-options">
                     <div className="sub-option">
-                      <label>Quality (1-100)</label>
+                      <label>质量 (1-100)</label>
                       <input 
                         type="range" 
                         min="1" 
@@ -1073,7 +1073,7 @@ function ToolDetailContent({ toolName, onBack }) {
                     </div>
                     
                     <div className="sub-option">
-                      <label>Background Color</label>
+                      <label>背景颜色</label>
                       <div className="color-picker-wrapper">
                         <input 
                           type="color" 
@@ -1095,7 +1095,7 @@ function ToolDetailContent({ toolName, onBack }) {
                     className="option-group-header" 
                     onClick={() => setIsWatermarkExpanded(!isWatermarkExpanded)}
                   >
-                    <span>Watermark Info</span>
+                    <span>水印信息</span>
                     <svg 
                       width="16" 
                       height="16" 
@@ -1114,7 +1114,7 @@ function ToolDetailContent({ toolName, onBack }) {
                       {!['TXT', 'EPUB'].includes(target) && (
                         <>
                           <div className="sub-option">
-                            <label>Text</label>
+                            <label>文字</label>
                             <input 
                               type="text" 
                               placeholder=""
@@ -1124,19 +1124,19 @@ function ToolDetailContent({ toolName, onBack }) {
                           </div>
                           
                           <div className="sub-option">
-                            <label>Font</label>
+                            <label>字体</label>
                             <select 
                               value={watermarkOptions.font}
                               onChange={(e) => setWatermarkOptions({...watermarkOptions, font: e.target.value})}
                             >
                               <option>Arial Bold</option>
-                              <option>SimSun</option>
-                              <option>Microsoft YaHei</option>
+                              <option>宋体</option>
+                              <option>微软雅黑</option>
                             </select>
                           </div>
                           
                           <div className="sub-option">
-                            <label>Color</label>
+                            <label>颜色</label>
                             <div className="color-picker-wrapper">
                               <div 
                                 className="color-preview" 
@@ -1146,7 +1146,7 @@ function ToolDetailContent({ toolName, onBack }) {
                           </div>
                           
                           <div className="sub-option">
-                            <label>Size</label>
+                            <label>大小</label>
                             <input 
                               type="range" 
                               min="10" 
@@ -1158,7 +1158,7 @@ function ToolDetailContent({ toolName, onBack }) {
                           </div>
                           
                           <div className="sub-option">
-                            <label>Opacity</label>
+                            <label>不透明度</label>
                             <input 
                               type="range" 
                               min="0" 
@@ -1170,7 +1170,7 @@ function ToolDetailContent({ toolName, onBack }) {
                           </div>
                           
                           <div className="sub-option">
-                            <label>Angle</label>
+                            <label>角度</label>
                             <input 
                               type="range" 
                               min="0" 
@@ -1184,7 +1184,7 @@ function ToolDetailContent({ toolName, onBack }) {
                       )}
                       
                       <div className="sub-option">
-                        <label>Position</label>
+                        <label>位置</label>
                         <div className="position-grid">
                           {[
                             { pos: 'top-left', icon: <path d="M7 17l10-10M7 7h10v10" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }} /> },

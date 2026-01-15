@@ -19,7 +19,7 @@ function ToolSidebar({ sections, activeSection, onSectionClick }) {
       
       <div className="sidebar-footer">
         <div className="ad-banner-sidebar">
-          AD (2:3)
+          广告 (2:3)
         </div>
       </div>
     </aside>

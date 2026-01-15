@@ -103,7 +103,7 @@ function DocTools() {
                     <div className="card-content">
                       <h3 className="card-title">{tool}</h3>
                       <div className="card-tags">
-                        <span className="tag">DOC TOOLS</span>
+                        <span className="tag">文档工具</span>
                       </div>
                       <p className="card-desc">
                         一款在线{tool}转换器，支持自定义参数，提供多种分辨率选项，助您轻松完成格式转换。
