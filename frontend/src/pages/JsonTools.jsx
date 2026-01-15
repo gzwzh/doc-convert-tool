@@ -1,21 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { categories } from '../data';
 import ToolHeader from '../components/ToolHeader';
 import ToolSidebar from '../components/ToolSidebar';
 import ToolDetailContent from '../components/ToolDetailContent';
 import '../App.css';
 
-function DocTools() {
+function JsonTools() {
   const navigate = useNavigate();
-  const { toolType } = useParams();
   const categoryData = categories['文档类'];
   const [activeSection, setActiveSection] = useState(null);
   const [selectedTool, setSelectedTool] = useState(null);
 
   useEffect(() => {
     if (categoryData && categoryData.length > 0) {
-      setActiveSection(categoryData[0]);
+      // Find JSON converter section
+      const jsonSection = categoryData.find(section => section.name === 'JSON 转换器');
+      setActiveSection(jsonSection || categoryData[0]);
     } else {
         navigate('/');
     }
@@ -41,28 +42,12 @@ function DocTools() {
     };
     
     const route = sectionRoutes[section.name];
-    if (route && route !== '/tools/doc') {
+    if (route && route !== '/tools/json') {
       navigate(route);
     } else {
       // Stay on current page but switch section
       setActiveSection(section);
       setSelectedTool(null);
-    }
-  };
-
-  const handleCategoryNavigation = (categoryName) => {
-    const categoryMap = {
-      'DOCX 转换器': 'docx',
-      'HTML 转换器': 'html', 
-      'JSON 转换器': 'json',
-      'PDF 转换器': 'pdf',
-      'TXT 转换器': 'txt',
-      'XML 转换器': 'xml'
-    };
-    
-    const route = categoryMap[categoryName];
-    if (route) {
-      navigate(`/tools/${route}`);
     }
   };
 
@@ -96,14 +81,14 @@ function DocTools() {
                     style={{ cursor: 'pointer' }}
                   >
                     <div className="card-icon-wrapper">
-                      <div className="file-icon source">DOC</div>
+                      <div className="file-icon source">JSON</div>
                       <div className="arrow-icon">→</div>
-                      <div className="file-icon target">PDF</div>
+                      <div className="file-icon target">{tool.split(' To ')[1]}</div>
                     </div>
                     <div className="card-content">
                       <h3 className="card-title">{tool}</h3>
                       <div className="card-tags">
-                        <span className="tag">DOC TOOLS</span>
+                        <span className="tag">JSON TOOLS</span>
                       </div>
                       <p className="card-desc">
                         一款在线{tool}转换器，支持自定义参数，提供多种分辨率选项，助您轻松完成格式转换。
@@ -120,4 +105,4 @@ function DocTools() {
   );
 }
 
-export default DocTools;
+export default JsonTools;

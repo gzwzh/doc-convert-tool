@@ -1,12 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import '../App.css'; // Reuse basic vars
+import '../App.css';
 
-// Map display names to URL slugs
 const categoryMap = {
-  '视频类': 'video',
-  '图片类': 'image',
-  '文档类': 'doc',
-  '音频类': 'audio'
+  '文档类': 'doc'
 };
 
 function Home() {
@@ -15,21 +11,15 @@ function Home() {
 
   const getIcon = (cat) => {
     switch(cat) {
-      case '视频类': return '🎬';
-      case '图片类': return '🖼️';
       case '文档类': return '📄';
-      case '音频类': return '🎵';
       default: return '📁';
     }
   };
 
   const getDescription = (cat) => {
     switch(cat) {
-      case '视频类': return 'AVI, MP4, GIF 等视频格式互转';
-      case '图片类': return 'JPG, PNG, SVG 等图片处理工具';
       case '文档类': return 'PDF, DOCX, JSON 等文档转换';
-      case '音频类': return 'MP3, WAV 等音频格式转换';
-      default: return '各种格式转换工具';
+      default: return '文档格式转换工具';
     }
   };
 
