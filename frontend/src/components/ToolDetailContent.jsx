@@ -1,10 +1,21 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import { convertJSON, convertXML, convertGeneral } from '../services/api';
 
-function ToolDetailContent({ toolName, onBack }) {
+const API_BASE_URL = 'http://127.0.0.1:8002';
+
+function ToolDetailContent({ toolName }) {
   const navigate = useNavigate();
-  const [selectedFile, setSelectedFile] = useState(null);
+  const fileInputRef = useRef(null);
+  const folderInputRef = useRef(null);
+  const [files, setFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
+  const [conversionResults, setConversionResults] = useState({}); // Map of file index to result
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [isWatermarkExpanded, setIsWatermarkExpanded] = useState(true);
   const [isPdfPagesExpanded, setIsPdfPagesExpanded] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -48,6 +59,9 @@ function ToolDetailContent({ toolName, onBack }) {
     orientation: '纵向'
   });
 
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewContent, setPreviewContent] = useState('');
+
   const toggleSection = (section) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
@@ -64,7 +78,7 @@ function ToolDetailContent({ toolName, onBack }) {
 
   // Determine if the right sidebar should be shown
   const showSidebar = source === 'JSON' 
-    ? ['CSV', 'JPG', 'YAML'].includes(target)
+    ? ['CSV', 'JPG', 'YAML', 'XML'].includes(target)
     : source === 'TXT'
     ? ['SPEECH', 'PDF', 'JPG', 'PNG'].includes(target)
     : source === 'XML'
@@ -106,6 +120,27 @@ function ToolDetailContent({ toolName, onBack }) {
     }
   };
 
+  const handlePreviewHtml = () => {
+    if (!htmlOptions.enablePreview) {
+      toast.error('请先勾选"启用预览"选项');
+      return;
+    }
+
+    if (files.length === 0) {
+      toast.error('请先上传 HTML 文件');
+      return;
+    }
+
+    // Preview the first file
+    const file = files[0].file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPreviewContent(e.target.result);
+      setShowPreviewModal(true);
+    };
+    reader.readAsText(file);
+  };
+
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragging(true);
@@ -118,27 +153,410 @@ function ToolDetailContent({ toolName, onBack }) {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      setSelectedFile(files[0]);
+    const droppedFiles = Array.from(e.dataTransfer.files).map(file => ({
+      id: Date.now() + Math.random().toString(36).substr(2, 9),
+      file
+    }));
+    if (droppedFiles.length > 0) {
+      setFiles(prev => [...prev, ...droppedFiles]);
     }
   };
 
   const handleFileSelect = (e) => {
-    const files = e.target.files;
-    if (files.length > 0) {
-      setSelectedFile(files[0]);
+    const selectedFiles = Array.from(e.target.files).map(file => ({
+      id: Date.now() + Math.random().toString(36).substr(2, 9),
+      file
+    }));
+    if (selectedFiles.length > 0) {
+      setFiles(prev => [...prev, ...selectedFiles]);
+    }
+    // Reset input
+    e.target.value = '';
+  };
+
+  const handleFolderSelect = (e) => {
+    const selectedFiles = Array.from(e.target.files).map(file => ({
+      id: Date.now() + Math.random().toString(36).substr(2, 9),
+      file
+    }));
+    if (selectedFiles.length > 0) {
+      setFiles(prev => [...prev, ...selectedFiles]);
+    }
+    // Reset input
+    e.target.value = '';
+  };
+
+  const handleRemoveFile = (id) => {
+    setFiles(prev => prev.filter(f => f.id !== id));
+    // Also remove from conversion results
+    setConversionResults(prev => {
+      const newResults = { ...prev };
+      delete newResults[id];
+      return newResults;
+    });
+  };
+
+  const handleClearAll = () => {
+    setFiles([]);
+    setConversionResults({});
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (folderInputRef.current) folderInputRef.current.value = '';
+  };
+
+  const handleDownloadAll = (e) => {
+    e.stopPropagation();
+    const hasDownloadableFiles = Object.values(conversionResults).some(res => res && !res.error && res.download_url);
+    if (!hasDownloadableFiles) {
+      toast.error('没有可下载的文件');
+      return;
+    }
+    setShowDownloadMenu(!showDownloadMenu);
+  };
+
+  const handleBatchDownload = async () => {
+    const downloadableFiles = Object.values(conversionResults)
+      .filter(res => res && !res.error && res.download_url && res.download_url !== '#' && !res.download_url.startsWith('#'));
+      
+    if (downloadableFiles.length === 0) return;
+    
+    setShowDownloadMenu(false);
+
+            // 1. Electron Environment: Use IPC
+            if (window.electronAPI) {
+              try {
+                const dirPath = await window.electronAPI.selectDirectory();
+                if (!dirPath) return; // User cancelled
+
+                const toastId = toast.loading('正在保存文件...');
+                let successCount = 0;
+                let lastError = null;
+
+                for (const res of downloadableFiles) {
+                  try {
+                    if (!res.download_url) {
+                        console.error('[BatchDownload] Missing download_url in response', res);
+                        throw new Error('Invalid conversion result: missing download URL');
+                    }
+                    const url = `${API_BASE_URL}${res.download_url}`;
+                    console.log(`[BatchDownload] Fetching URL: ${url}`);
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        const errorMsg = `Fetch failed: ${response.status} for ${url}`;
+                        console.error(`[BatchDownload] ${errorMsg}`);
+                        throw new Error(errorMsg);
+                    }
+                    const blob = await response.blob();
+                    const arrayBuffer = await blob.arrayBuffer();
+                    
+                    const rawFilename = res.download_url.split('/').pop();
+                    const filename = rawFilename ? decodeURIComponent(rawFilename) : `file-${Date.now()}.dat`;
+                    
+                    // In Electron, we need to construct the full path. 
+                    // Since we can't easily use 'path.join' in frontend without more exposure, 
+                    // we'll assume standard separator or let backend handle? 
+                    // Actually simple string concat with '/' usually works in JS even on Windows for many node APIs, 
+                    // but for fs.writeFileSync in Main process, we should send the dirPath and filename separately?
+                    // Or just concat with backslash if on Windows?
+                    // Let's assume the user selects a path like "C:\Users\..."
+                    // We'll construct the path in frontend. 
+                    // A safe bet is to handle path joining in the main process, but for now let's do simple check.
+                    const separator = dirPath.includes('\\') ? '\\' : '/';
+                    const fullPath = `${dirPath}${separator}${filename}`;
+
+                    const result = await window.electronAPI.saveFile(fullPath, arrayBuffer);
+                    if (!result.success) throw new Error(result.error);
+                    
+                    successCount++;
+                  } catch (err) {
+                    console.error('Electron save error:', err);
+                    lastError = err;
+                  }
+                }
+
+                if (successCount > 0) {
+                  toast.success(`成功保存 ${successCount} 个文件`, { id: toastId });
+                } else {
+                  toast.error(`保存失败: ${lastError ? lastError.message : '未知错误'}`, { id: toastId });
+                }
+                return;
+
+              } catch (err) {
+                 console.error('Electron dialog error:', err);
+                 toast.error('保存操作失败');
+                 return;
+              }
+            }
+
+            // 2. Web Environment: Try File System Access API
+            if (window.showDirectoryPicker) {
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        const toastId = toast.loading('正在保存文件...');
+        
+        let successCount = 0;
+        let lastError = null;
+        for (const res of downloadableFiles) {
+          try {
+            const url = `${API_BASE_URL}${res.download_url}`;
+            console.log('Downloading from:', url);
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Fetch failed: ${response.status} for ${url}`);
+            const blob = await response.blob();
+            const rawFilename = res.download_url.split('/').pop();
+            const filename = rawFilename ? decodeURIComponent(rawFilename) : `file-${Date.now()}.dat`;
+            
+            console.log('Saving to file:', filename);
+            const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            successCount++;
+          } catch (err) {
+            console.error('File write error:', err);
+            lastError = err;
+          }
+        }
+        
+        if (successCount > 0) {
+            toast.success(`成功保存 ${successCount} 个文件`, { id: toastId });
+        } else {
+            toast.error(`保存失败: ${lastError ? `${lastError.name}: ${lastError.message}` : '未知错误'}`, { id: toastId });
+        }
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Directory picker error:', err);
+          toast.error('无法访问文件夹');
+        } else {
+            return; // User cancelled
+        }
+      }
+    }
+    
+    // Fallback: Trigger downloads with a slight delay
+    toast.success('开始批量下载...');
+    downloadableFiles.forEach((res, index) => {
+      setTimeout(() => {
+        const link = document.createElement('a');
+        link.href = `${API_BASE_URL}${res.download_url}`;
+        link.download = ''; 
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }, index * 500);
+    });
+  };
+
+  const handleZipDownload = async () => {
+    const downloadableFiles = Object.values(conversionResults)
+      .filter(res => res && !res.error && res.download_url && res.download_url !== '#' && !res.download_url.startsWith('#'));
+      
+    if (downloadableFiles.length === 0) return;
+
+    setShowDownloadMenu(false);
+    const zip = new JSZip();
+    const toastId = toast.loading('正在打包文件...');
+    
+    try {
+      const promises = downloadableFiles.map(async (res) => {
+        const response = await fetch(`${API_BASE_URL}${res.download_url}`);
+        const blob = await response.blob();
+        const filename = res.download_url.split('/').pop() || `file-${Date.now()}.dat`;
+        zip.file(filename, blob);
+      });
+
+      await Promise.all(promises);
+      
+      const content = await zip.generateAsync({ type: 'blob' });
+      const filename = `${toolName}-converted-${Date.now()}.zip`;
+
+      // 1. Electron Environment
+      if (window.electronAPI) {
+        try {
+          const filePath = await window.electronAPI.showSaveDialog({
+            defaultPath: filename,
+            filters: [{ name: 'ZIP Archive', extensions: ['zip'] }]
+          });
+          
+          if (filePath) {
+            const arrayBuffer = await content.arrayBuffer();
+            const result = await window.electronAPI.saveFile(filePath, arrayBuffer);
+            if (result.success) {
+               toast.success('打包下载成功', { id: toastId });
+            } else {
+               throw new Error(result.error);
+            }
+          } else {
+            toast.dismiss(toastId); // User cancelled
+          }
+          return;
+        } catch (err) {
+          console.error('Electron zip save error:', err);
+          toast.error('保存失败', { id: toastId });
+          return;
+        }
+      }
+
+      // 2. Web Environment: Try File System Access API for Save
+      if (window.showSaveFilePicker) {
+          try {
+              const handle = await window.showSaveFilePicker({
+                  suggestedName: filename,
+                  types: [{
+                      description: 'ZIP Archive',
+                      accept: {'application/zip': ['.zip']},
+                  }],
+              });
+              const writable = await handle.createWritable();
+              await writable.write(content);
+              await writable.close();
+              toast.success('打包下载成功', { id: toastId });
+              return;
+          } catch (err) {
+              if (err.name === 'AbortError') {
+                  toast.dismiss(toastId);
+                  return; 
+              }
+              // If error, fall through to saveAs
+              console.error('Save picker error:', err);
+          }
+      }
+
+      saveAs(content, filename);
+      
+      toast.success('打包下载成功', { id: toastId });
+    } catch (error) {
+      console.error('Zip download error:', error);
+      toast.error('打包下载失败', { id: toastId });
     }
   };
 
-  const handleConvert = () => {
-    if (selectedFile) {
-      alert(`开始转换: ${selectedFile.name} 从 ${source} 到 ${target}`);
-    }
-  };
+  const handleConvert = async () => {
+    if (files.length === 0) return;
 
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
+    setIsConverting(true);
+    setConversionResults({});
+    
+    let successCount = 0;
+    let failureCount = 0;
+    const toastId = toast.loading('正在处理文件...');
+
+    try {
+      // Loop through all files
+      for (let i = 0; i < files.length; i++) {
+        const fileObj = files[i];
+        const file = fileObj.file;
+        
+        try {
+          let result;
+          if (source === 'JSON' && (target === 'YAML' || target === 'YML' || target === 'XML')) {
+            const options = {};
+            if (target === 'YAML' || target === 'YML') {
+              options.indent = convertOptions.yamlIndent;
+            }
+            result = await convertJSON(file, target.toLowerCase(), options);
+          } else if (source === 'XML' && (target === 'JSON' || target === 'YAML' || target === 'YML')) {
+            const options = {};
+            if (target === 'YAML' || target === 'YML') {
+              options.indent = convertOptions.yamlIndent;
+            }
+            if (target === 'JSON') {
+              options.indent = convertOptions.yamlIndent;
+            }
+            result = await convertXML(file, target.toLowerCase(), options);
+          } else if (
+            // DOCX 转换
+            (source === 'DOCX' && ['TXT', 'PDF', 'PNG', 'JPG', 'EPUB'].includes(target)) ||
+            // HTML 转换
+            (source === 'HTML' && ['PDF', 'TXT', 'TEXT', 'MARKDOWN', 'MD', 'PNG', 'JPG', 'JPEG', 'DOCX', 'DOC', 'WORD'].includes(target)) ||
+            // PDF 转换
+            (source === 'PDF' && ['TXT', 'DOCX', 'DOC', 'HTML', 'PNG', 'JPG', 'JPEG', 'BMP', 'TIFF', 'JSON', 'BASE64', 'MD', 'SVG', 'EPUB', 'GIF', 'WEBP'].includes(target)) ||
+            // TXT 转换
+            (source === 'TXT' && ['PDF', 'HTML', 'PNG', 'JPG', 'JPEG', 'MP3', 'WAV', 'ASCII', 'BINARY', 'BIN', 'CSV', 'HEX'].includes(target)) ||
+            // JSON 转换
+            (source === 'JSON' && ['CSV', 'HTML', 'PDF', 'BASE64'].includes(target)) ||
+            // XML 转换
+            (source === 'XML' && ['CSV', 'HTML', 'TXT', 'PDF', 'XLSX'].includes(target))
+          ) {
+            let targetFormat = target.toLowerCase();
+            if (target === 'MARKDOWN') targetFormat = 'md';
+            if (source === 'HTML' && target === 'TEXT') targetFormat = 'txt';
+            if (target === 'WORD') targetFormat = 'docx';
+            
+            // Prepare options based on source format
+            const options = {};
+            
+            // HTML specific options
+            if (source === 'HTML') {
+              options.enablePreview = htmlOptions.enablePreview;
+              options.cssHandling = htmlOptions.cssHandling;
+              options.compressCss = htmlOptions.compressCss;
+              options.customCss = htmlOptions.customCss;
+              options.removeScripts = htmlOptions.removeScripts;
+              options.removeComments = htmlOptions.removeComments;
+              options.compressHtml = htmlOptions.compressHtml;
+              options.removeEmptyTags = htmlOptions.removeEmptyTags;
+              options.pageSize = htmlOptions.pageSize;
+              options.orientation = htmlOptions.orientation;
+            }
+            
+            // PDF specific options
+            if (source === 'PDF') {
+              options.quality = convertOptions.quality;
+              options.pdfPageSelection = convertOptions.pdfPageSelection;
+              if (target === 'GIF') {
+                options.animationDelay = convertOptions.animationDelay;
+                options.loopAnimation = convertOptions.loopAnimation;
+              }
+            }
+            
+            // TXT specific options
+            if (source === 'TXT') {
+              options.pageSize = convertOptions.pageSize;
+              options.orientation = convertOptions.orientation;
+              if (target === 'SPEECH' || target === 'MP3' || target === 'WAV') {
+                options.rate = Math.round(convertOptions.speechSpeed * 150);
+                options.volume = 1.0;
+              }
+            }
+            
+            // Image output options
+            if (['PNG', 'JPG', 'JPEG', 'BMP', 'WEBP'].includes(target)) {
+              options.quality = convertOptions.quality;
+              options.backgroundColor = convertOptions.backgroundColor;
+            }
+            
+            // CSV options
+            if (target === 'CSV') {
+              options.csvDelimiter = convertOptions.csvDelimiter;
+            }
+            
+            result = await convertGeneral(file, targetFormat, options);
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            throw new Error('该转换类型暂未实现');
+          }
+          
+          setConversionResults(prev => ({ ...prev, [fileObj.id]: result }));
+          successCount++;
+        } catch (err) {
+          console.error(`Error converting file ${file.name}:`, err);
+          setConversionResults(prev => ({ ...prev, [fileObj.id]: { error: err.message } }));
+          failureCount++;
+        }
+      }
+      
+      if (failureCount === 0) {
+        toast.success(`成功转换 ${successCount} 个文件`, { id: toastId });
+      } else {
+        toast.error(`转换完成: ${successCount} 个成功, ${failureCount} 个失败`, { id: toastId });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(`转换过程出错: ${err.message}`, { id: toastId });
+    } finally {
+      setIsConverting(false);
+    }
   };
 
   return (
@@ -170,48 +588,141 @@ function ToolDetailContent({ toolName, onBack }) {
 
       <div className={`main-content ${!showSidebar ? 'no-sidebar' : ''}`}>
         <div className="upload-section">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileSelect} 
+            style={{ display: 'none' }} 
+            multiple 
+          />
+          <input 
+            type="file" 
+            ref={folderInputRef} 
+            onChange={handleFolderSelect} 
+            style={{ display: 'none' }} 
+            webkitdirectory=""
+            directory=""
+            multiple
+          />
+
           <div 
-            className={`upload-area ${isDragging ? 'dragging' : ''} ${selectedFile ? 'has-file' : ''}`}
+            className={`upload-area ${isDragging ? 'dragging' : ''}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            {!selectedFile ? (
-              <div className="upload-content">
-                <div className="upload-icon-wrapper">
-                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#00a3ff" strokeWidth="1.5">
-                    <path d="M17.5 19c2.5 0 4.5-2 4.5-4.5 0-2.3-1.7-4.1-3.9-4.5-.5-3.1-3.1-5.5-6.1-5.5-2.5 0-4.6 1.6-5.4 3.9C4.3 8.1 2 9.8 2 12.5 2 15 4 17 6.5 17h1" strokeLinecap="round" strokeLinejoin="round"/>
-                    <polyline points="12 12 12 16" strokeLinecap="round" strokeLinejoin="round"/>
-                    <polyline points="9 13 12 10 15 13" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-                <div className="upload-text-row">
-                  <span className="upload-main-text">在这里拖放你的{source}文件</span>
-                </div>
-                <p className="upload-sub-text">或点击浏览文件</p>
-                <button className="select-file-btn">
+            <div className="upload-content">
+              <div className="upload-icon-wrapper">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#00a3ff" strokeWidth="1.5">
+                  <path d="M17.5 19c2.5 0 4.5-2 4.5-4.5 0-2.3-1.7-4.1-3.9-4.5-.5-3.1-3.1-5.5-6.1-5.5-2.5 0-4.6 1.6-5.4 3.9C4.3 8.1 2 9.8 2 12.5 2 15 4 17 6.5 17h1" strokeLinecap="round" strokeLinejoin="round"/>
+                  <polyline points="12 12 12 16" strokeLinecap="round" strokeLinejoin="round"/>
+                  <polyline points="9 13 12 10 15 13" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="upload-text-row">
+                <span className="upload-main-text">在这里拖放你的{source}文件或文件夹</span>
+              </div>
+              <p className="upload-sub-text">支持批量上传</p>
+              <div className="upload-buttons-container">
+                <button className="select-file-btn" onClick={() => fileInputRef.current.click()}>
                   + 选择文件
                 </button>
               </div>
-            ) : (
-              <div className="file-preview">
-                <div className="file-info">
-                  <div className="file-icon-large">{source}</div>
-                  <div className="file-details">
-                    <div className="file-name">{selectedFile.name}</div>
-                    <div className="file-size">
-                      {(selectedFile.size / 1024).toFixed(2)} KB
+            </div>
+          </div>
+
+          {files.length > 0 && (
+            <div className="file-list-container">
+              {files.map((fileObj) => (
+                <div key={fileObj.id} className="file-list-item">
+                  <div className="file-icon-small">{source}</div>
+                  
+                  <div className="file-info">
+                    <div className="file-name" title={fileObj.file.name}>{fileObj.file.name}</div>
+                    <div className="file-meta">
+                      {(fileObj.file.size / 1024).toFixed(2)} KB
+                      {conversionResults[fileObj.id] && (
+                         <span className={`conversion-status ${conversionResults[fileObj.id].error ? 'error' : 'success'}`}>
+                           {conversionResults[fileObj.id].error ? '转换失败' : '转换成功'}
+                         </span>
+                      )}
                     </div>
                   </div>
+
+                  <div className="file-actions">
+                    {conversionResults[fileObj.id] && !conversionResults[fileObj.id].error && (
+                      <a 
+                        href={`${API_BASE_URL}${conversionResults[fileObj.id].download_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-icon download"
+                        title="下载"
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      </a>
+                    )}
+                    <button 
+                      onClick={() => handleRemoveFile(fileObj.id)}
+                      className="btn-icon delete"
+                      title="移除"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
                 </div>
-                <button className="remove-file-btn" onClick={handleRemoveFile}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18" strokeLinecap="round" strokeLinejoin="round"/>
-                    <line x1="6" y1="6" x2="18" y2="18" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-              </div>
-            )}
+              ))}
+            </div>
+          )}
+
+          <div className="action-buttons">
+            <button 
+              className="btn-action btn-convert" 
+              onClick={handleConvert}
+              disabled={isConverting || files.length === 0}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
+              {isConverting ? '正在转换...' : '全部转换'}
+            </button>
+            
+            <button className="btn-action btn-clear" onClick={handleClearAll}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              全部清除
+            </button>
+            <div className="download-btn-wrapper" style={{ position: 'relative' }}>
+              <button className="btn-action btn-download" onClick={handleDownloadAll}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                全部下载
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '6px' }}>
+                   <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              {showDownloadMenu && (
+                <div className="download-dropdown-menu">
+                  <button className="dropdown-item" onClick={handleZipDownload}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight: '8px'}}>
+                       <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                       <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                       <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    打包下载 (ZIP)
+                  </button>
+                  <button className="dropdown-item" onClick={handleBatchDownload}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight: '8px'}}>
+                       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    下载到文件夹
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -252,7 +763,7 @@ function ToolDetailContent({ toolName, onBack }) {
                         />
                         <span>启用预览</span>
                       </label>
-                      <button className="preview-html-btn">
+                      <button className="preview-html-btn" onClick={handlePreviewHtml}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                           <circle cx="12" cy="12" r="3" />
@@ -273,7 +784,7 @@ function ToolDetailContent({ toolName, onBack }) {
                   </div>
                   {expandedSections.css && (
                     <div className="option-group-content">
-                      <div className="sub-option">
+                      <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                         <label>CSS 处理</label>
                         <select 
                           value={htmlOptions.cssHandling}
@@ -411,7 +922,6 @@ function ToolDetailContent({ toolName, onBack }) {
                             type="color" 
                             value={convertOptions.backgroundColor}
                             onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
-                            style={{ opacity: 0, position: 'absolute', width: '100%', height: '100%', cursor: 'pointer' }}
                           />
                           <div 
                             className="color-preview" 
@@ -424,11 +934,10 @@ function ToolDetailContent({ toolName, onBack }) {
                 )}
               </div>
             ) : source === 'PDF' ? (
-              <div className="pdf-specific-options" style={{ padding: '0 20px 20px' }}>
+              <div className="pdf-specific-options">
                 <div 
-                  className="option-group-header" 
+                  className="sub-group-header" 
                   onClick={() => setIsPdfPagesExpanded(!isPdfPagesExpanded)}
-                  style={{ padding: '15px 0', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                 >
                   <span style={{ fontSize: '15px', color: '#334155', fontWeight: '500' }}>页面选择</span>
                   <svg 
@@ -445,41 +954,24 @@ function ToolDetailContent({ toolName, onBack }) {
                 </div>
 
                 {isPdfPagesExpanded && (
-                  <div className="sub-option" style={{ marginTop: '20px' }}>
-                    <label style={{ color: '#334155', fontWeight: '600', marginBottom: '8px', display: 'block' }}>选择页面</label>
-                    <div className="custom-select-wrapper" style={{ position: 'relative' }}>
+                  <div className="sub-option spaced">
+                    <label className="sub-option-label">选择页面</label>
+                    <div className="custom-select-wrapper">
                       <select 
+                        className="custom-select"
                         value={convertOptions.pdfPageSelection}
                         onChange={(e) => setConvertOptions({...convertOptions, pdfPageSelection: e.target.value})}
-                        style={{ 
-                          width: '100%',
-                          padding: '12px',
-                          border: '1.5px solid #e2e8f0',
-                          borderRadius: '10px',
-                          fontSize: '14px',
-                          color: '#1e293b',
-                          backgroundColor: '#fff',
-                          appearance: 'none',
-                          cursor: 'pointer',
-                          outline: 'none'
-                        }}
                       >
                         <option>所有页面</option>
                         <option>页面范围</option>
                         <option>特定页面</option>
                       </select>
                       <svg 
+                        className="custom-select-arrow"
                         width="12" 
                         height="12" 
                         viewBox="0 0 16 16" 
                         fill="#94a3b8" 
-                        style={{ 
-                          position: 'absolute', 
-                          right: '12px', 
-                          top: '50%', 
-                          transform: 'translateY(-50%)',
-                          pointerEvents: 'none'
-                        }}
                       >
                         <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
                       </svg>
@@ -506,7 +998,7 @@ function ToolDetailContent({ toolName, onBack }) {
 
                 {target === 'GIF' && (
                   <>
-                    <div className="sub-option" style={{ marginTop: '20px' }}>
+                    <div className="sub-option" style={{ marginTop: '20px', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                       <label style={{ color: '#334155', fontWeight: '600', marginBottom: '8px', display: 'block' }}>动画延迟 (毫秒)</label>
                       <input 
                         type="number" 
@@ -543,11 +1035,11 @@ function ToolDetailContent({ toolName, onBack }) {
                 )}
               </div>
             ) : source === 'TXT' ? (
-              <div className="txt-specific-options" style={{ padding: '0 20px 20px' }}>
+              <div className="txt-specific-options">
                 {target === 'SPEECH' && (
                   <div className="speech-options">
-                    <div className="sub-option" style={{ marginTop: '10px' }}>
-                      <label style={{ color: '#334155', fontWeight: '600', marginBottom: '12px', display: 'block' }}>语音速度</label>
+                    <div className="sub-option spaced">
+                      <label className="sub-option-label">语音速度</label>
                       <input 
                         type="range" 
                         min="0.5" 
@@ -562,8 +1054,8 @@ function ToolDetailContent({ toolName, onBack }) {
                       </div>
                     </div>
 
-                    <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '600', marginBottom: '12px', display: 'block' }}>语音音调</label>
+                    <div className="sub-option spaced">
+                      <label className="sub-option-label">语音音调</label>
                       <input 
                         type="range" 
                         min="0.5" 
@@ -578,25 +1070,13 @@ function ToolDetailContent({ toolName, onBack }) {
                       </div>
                     </div>
 
-                    <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '600', marginBottom: '8px', display: 'block' }}>语音语言</label>
-                      <div className="custom-select-wrapper" style={{ position: 'relative' }}>
+                    <div className="sub-option spaced">
+                      <label className="sub-option-label">语音语言</label>
+                      <div className="custom-select-wrapper">
                         <select 
+                          className="custom-select"
                           value={convertOptions.speechLanguage}
                           onChange={(e) => setConvertOptions({...convertOptions, speechLanguage: e.target.value})}
-                          style={{ 
-                            width: '100%',
-                            padding: '12px',
-                            border: '1.5px solid #00a3ff',
-                            borderRadius: '10px',
-                            fontSize: '14px',
-                            color: '#1e293b',
-                            backgroundColor: '#fff',
-                            appearance: 'none',
-                            cursor: 'pointer',
-                            outline: 'none',
-                            boxShadow: '0 0 0 1px rgba(0, 163, 255, 0.1)'
-                          }}
                         >
                           <option>英语</option>
                           <option>中文 (普通话)</option>
@@ -605,17 +1085,11 @@ function ToolDetailContent({ toolName, onBack }) {
                           <option>德语</option>
                         </select>
                         <svg 
+                          className="custom-select-arrow"
                           width="12" 
                           height="12" 
                           viewBox="0 0 16 16" 
                           fill="#94a3b8" 
-                          style={{ 
-                            position: 'absolute', 
-                            right: '12px', 
-                            top: '50%', 
-                            transform: 'translateY(-50%)',
-                            pointerEvents: 'none'
-                          }}
                         >
                           <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
                         </svg>
@@ -626,7 +1100,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 
                 {target === 'PDF' && (
                   <>
-                    <div className="sub-option" style={{ marginTop: '10px' }}>
+                    <div className="sub-option" style={{ marginTop: '10px', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                       <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>页面大小</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
@@ -668,7 +1142,7 @@ function ToolDetailContent({ toolName, onBack }) {
                       </div>
                     </div>
 
-                    <div className="sub-option" style={{ marginTop: '20px' }}>
+                    <div className="sub-option" style={{ marginTop: '20px', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                       <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>方向</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
@@ -730,32 +1204,15 @@ function ToolDetailContent({ toolName, onBack }) {
 
                     <div className="sub-option" style={{ marginTop: '20px' }}>
                       <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>背景颜色</label>
-                      <div className="color-picker-wrapper" style={{ 
-                        width: '56px', 
-                        height: '28px', 
-                        padding: '3px',
-                        border: '1px solid #94a3b8',
-                        borderRadius: '2px',
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
+                      <div className="color-picker-wrapper">
                         <input 
                           type="color" 
                           value={convertOptions.backgroundColor}
                           onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
-                          style={{ opacity: 0, position: 'absolute', width: '100%', height: '100%', cursor: 'pointer', zIndex: 1 }}
                         />
                         <div 
                           className="color-preview" 
-                          style={{ 
-                            width: '100%',
-                            height: '100%',
-                            backgroundColor: convertOptions.backgroundColor,
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '1px'
-                          }}
+                          style={{ backgroundColor: convertOptions.backgroundColor }}
                         ></div>
                       </div>
                     </div>
@@ -766,7 +1223,7 @@ function ToolDetailContent({ toolName, onBack }) {
               <div className="json-specific-options">
                 {target === 'CSV' && (
                   <div className="option-group-content" style={{ padding: '20px' }}>
-                    <div className="sub-option">
+                    <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                       <label>CSV 分隔符</label>
                       <select 
                         value={convertOptions.csvDelimiter}
@@ -870,36 +1327,53 @@ function ToolDetailContent({ toolName, onBack }) {
               </div>
             ) : source === 'XML' ? (
               <div className="xml-specific-options" style={{ padding: '0 20px 20px' }}>
+                <div className="option-group-content static-options">
+                  {target === 'YAML' && (
+                    <div className="sub-option">
+                      <label>YAML 缩进</label>
+                      <input 
+                        type="range" 
+                        min="2" 
+                        max="8" 
+                        step="2"
+                        value={convertOptions.yamlIndent}
+                        onChange={(e) => setConvertOptions({...convertOptions, yamlIndent: parseInt(e.target.value)})}
+                      />
+                      <div className="value-label-center" style={{ marginTop: '8px', color: '#94a3b8' }}>
+                        {convertOptions.yamlIndent}
+                      </div>
+                    </div>
+                  )}
+                  {target === 'JSON' && (
+                    <div className="sub-option">
+                      <label>JSON 缩进</label>
+                      <input 
+                        type="range" 
+                        min="2" 
+                        max="8" 
+                        step="2"
+                        value={convertOptions.yamlIndent}
+                        onChange={(e) => setConvertOptions({...convertOptions, yamlIndent: parseInt(e.target.value)})}
+                      />
+                      <div className="value-label-center" style={{ marginTop: '8px', color: '#94a3b8' }}>
+                        {convertOptions.yamlIndent}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 {target === 'PDF' && (
                   <>
                     <div className="sub-option" style={{ marginTop: '10px' }}>
                       <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>背景颜色</label>
-                      <div className="color-picker-wrapper" style={{ 
-                        width: '56px', 
-                        height: '28px', 
-                        padding: '3px',
-                        border: '1px solid #94a3b8',
-                        borderRadius: '2px',
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
+                      <div className="color-picker-wrapper">
                         <input 
                           type="color" 
                           value={convertOptions.backgroundColor}
                           onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
-                          style={{ opacity: 0, position: 'absolute', width: '100%', height: '100%', cursor: 'pointer', zIndex: 1 }}
                         />
                         <div 
                           className="color-preview" 
-                          style={{ 
-                            width: '100%',
-                            height: '100%',
-                            backgroundColor: convertOptions.backgroundColor,
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '1px'
-                          }}
+                          style={{ backgroundColor: convertOptions.backgroundColor }}
                         ></div>
                       </div>
                     </div>
@@ -964,32 +1438,15 @@ function ToolDetailContent({ toolName, onBack }) {
                     </div>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
                       <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>背景颜色</label>
-                      <div className="color-picker-wrapper" style={{ 
-                        width: '56px', 
-                        height: '28px', 
-                        padding: '3px',
-                        border: '1px solid #94a3b8',
-                        borderRadius: '2px',
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
+                      <div className="color-picker-wrapper">
                         <input 
                           type="color" 
                           value={convertOptions.backgroundColor}
                           onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
-                          style={{ opacity: 0, position: 'absolute', width: '100%', height: '100%', cursor: 'pointer', zIndex: 1 }}
                         />
                         <div 
                           className="color-preview" 
-                          style={{ 
-                            width: '100%',
-                            height: '100%',
-                            backgroundColor: convertOptions.backgroundColor,
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '1px'
-                          }}
+                          style={{ backgroundColor: convertOptions.backgroundColor }}
                         ></div>
                       </div>
                     </div>
@@ -1079,7 +1536,6 @@ function ToolDetailContent({ toolName, onBack }) {
                           type="color" 
                           value={convertOptions.backgroundColor}
                           onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
-                          style={{ opacity: 0, position: 'absolute', width: '100%', height: '100%', cursor: 'pointer' }}
                         />
                         <div 
                           className="color-preview" 
@@ -1113,7 +1569,7 @@ function ToolDetailContent({ toolName, onBack }) {
                     <div className="option-group-content">
                       {!['TXT', 'EPUB'].includes(target) && (
                         <>
-                          <div className="sub-option">
+                          <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                             <label>文字</label>
                             <input 
                               type="text" 
@@ -1217,29 +1673,30 @@ function ToolDetailContent({ toolName, onBack }) {
           </div>
         </div>
       )}
-      </div>
 
-      <div className="action-buttons">
-        <button className="btn-action btn-convert" onClick={handleConvert}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor" />
-          </svg>
-          全部转换
-        </button>
-        <button className="btn-action btn-clear" onClick={handleRemoveFile}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-          </svg>
-          全部清除
-        </button>
-        <button className="btn-action btn-download" onClick={() => alert('全部下载')}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          全部下载
-        </button>
+      {showPreviewModal && (
+        <div className="modal-overlay" onClick={() => setShowPreviewModal(false)}>
+          <div className="preview-modal" onClick={e => e.stopPropagation()}>
+            <div className="preview-modal-header">
+              <h3>HTML 预览</h3>
+              <button className="preview-close-btn" onClick={() => setShowPreviewModal(false)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            <div className="preview-modal-content">
+              <iframe 
+                srcDoc={previewContent} 
+                title="HTML Preview"
+                style={{ width: '100%', height: '100%', border: 'none', backgroundColor: '#fff' }}
+                sandbox="allow-scripts"
+              />
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

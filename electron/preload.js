@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Example API to expose to frontend
-  // sendMessage: (message) => ipcRenderer.send('message', message),
+  selectDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
+  showSaveDialog: (options) => ipcRenderer.invoke('dialog:showSaveDialog', options),
+  saveFile: (filePath, buffer) => ipcRenderer.invoke('file:save', filePath, buffer)
 });

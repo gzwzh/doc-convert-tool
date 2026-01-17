@@ -1,5 +1,6 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -21,6 +22,37 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // IPC Handlers
+  ipcMain.handle('dialog:openDirectory', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openDirectory']
+    });
+    if (canceled) {
+      return null;
+    } else {
+      return filePaths[0];
+    }
+  });
+
+  ipcMain.handle('dialog:showSaveDialog', async (event, options) => {
+    const { canceled, filePath } = await dialog.showSaveDialog(options);
+    if (canceled) {
+      return null;
+    } else {
+      return filePath;
+    }
+  });
+
+  ipcMain.handle('file:save', async (event, filePath, buffer) => {
+    try {
+      fs.writeFileSync(filePath, Buffer.from(buffer));
+      return { success: true };
+    } catch (error) {
+      console.error('File save error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   createWindow();
 
   // Here you can spawn the Python backend
