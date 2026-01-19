@@ -16,12 +16,12 @@ function ToolDetailContent({ toolName }) {
   const [isConverting, setIsConverting] = useState(false);
   const [conversionResults, setConversionResults] = useState({}); // Map of file index to result
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
-  const [isWatermarkExpanded, setIsWatermarkExpanded] = useState(true);
+  const [isWatermarkExpanded, setIsWatermarkExpanded] = useState(false);
   const [isPdfPagesExpanded, setIsPdfPagesExpanded] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
-    preview: true,
-    css: true,
-    cleanup: true
+    preview: false,
+    css: false,
+    cleanup: false
   });
   const [watermarkOptions, setWatermarkOptions] = useState({
     text: '',
@@ -43,7 +43,7 @@ function ToolDetailContent({ toolName }) {
     loopAnimation: true,
     speechSpeed: 1.0,
     speechPitch: 1.0,
-    speechLanguage: '英语',
+    speechLanguage: '中文 (普通话)',
     pageSize: 'A4'
   });
   const [htmlOptions, setHtmlOptions] = useState({
@@ -468,67 +468,71 @@ function ToolDetailContent({ toolName }) {
             // DOCX 转换
             (source === 'DOCX' && ['TXT', 'PDF', 'PNG', 'JPG', 'EPUB'].includes(target)) ||
             // HTML 转换
-            (source === 'HTML' && ['PDF', 'TXT', 'TEXT', 'MARKDOWN', 'MD', 'PNG', 'JPG', 'JPEG', 'DOCX', 'DOC', 'WORD'].includes(target)) ||
+            (source === 'HTML' && ['PDF', 'TXT', 'TEXT', 'MARKDOWN', 'MD', 'PNG', 'JPG', 'JPEG', 'DOCX', 'DOC', 'WORD', 'JSON', 'GIF', 'SVG'].includes(target)) ||
             // PDF 转换
-            (source === 'PDF' && ['TXT', 'DOCX', 'DOC', 'HTML', 'PNG', 'JPG', 'JPEG', 'BMP', 'TIFF', 'JSON', 'BASE64', 'MD', 'SVG', 'EPUB', 'GIF', 'WEBP'].includes(target)) ||
+            (source === 'PDF' && ['TXT', 'DOCX', 'DOC', 'HTML', 'PNG', 'JPG', 'JPEG', 'BMP', 'TIFF', 'JSON', 'BASE64', 'MD', 'SVG', 'EPUB', 'GIF', 'WEBP', 'PPT', 'PPTX', 'RTF', 'PSD'].includes(target)) ||
             // TXT 转换
-            (source === 'TXT' && ['PDF', 'HTML', 'PNG', 'JPG', 'JPEG', 'MP3', 'WAV', 'ASCII', 'BINARY', 'BIN', 'CSV', 'HEX'].includes(target)) ||
+            (source === 'TXT' && ['PDF', 'HTML', 'PNG', 'JPG', 'JPEG', 'MP3', 'WAV', 'SPEECH', 'ASCII', 'BINARY', 'BIN', 'CSV', 'HEX'].includes(target)) ||
             // JSON 转换
-            (source === 'JSON' && ['CSV', 'HTML', 'PDF', 'BASE64'].includes(target)) ||
+            (source === 'JSON' && ['CSV', 'HTML', 'PDF', 'BASE64', 'PNG', 'JPG', 'JPEG', 'SVG'].includes(target)) ||
             // XML 转换
-            (source === 'XML' && ['CSV', 'HTML', 'TXT', 'PDF', 'XLSX'].includes(target))
+            (source === 'XML' && ['CSV', 'HTML', 'TXT', 'TEXT', 'PDF', 'XLSX', 'PNG', 'JPG', 'JPEG', 'SVG'].includes(target))
           ) {
             let targetFormat = target.toLowerCase();
             if (target === 'MARKDOWN') targetFormat = 'md';
             if (source === 'HTML' && target === 'TEXT') targetFormat = 'txt';
+            if (source === 'XML' && target === 'TEXT') targetFormat = 'txt';
             if (target === 'WORD') targetFormat = 'docx';
+            if (target === 'SPEECH') targetFormat = 'mp3';  // 默认转换为 MP3
             
             // Prepare options based on source format
             const options = {};
             
             // HTML specific options
             if (source === 'HTML') {
-              options.enablePreview = htmlOptions.enablePreview;
-              options.cssHandling = htmlOptions.cssHandling;
-              options.compressCss = htmlOptions.compressCss;
-              options.customCss = htmlOptions.customCss;
-              options.removeScripts = htmlOptions.removeScripts;
-              options.removeComments = htmlOptions.removeComments;
-              options.compressHtml = htmlOptions.compressHtml;
-              options.removeEmptyTags = htmlOptions.removeEmptyTags;
-              options.pageSize = htmlOptions.pageSize;
+              options.enable_preview = htmlOptions.enablePreview;
+              options.css_handling = htmlOptions.cssHandling;
+              options.compress_css = htmlOptions.compressCss;
+              options.custom_css = htmlOptions.customCss;
+              options.remove_scripts = htmlOptions.removeScripts;
+              options.remove_comments = htmlOptions.removeComments;
+              options.compress_html = htmlOptions.compressHtml;
+              options.remove_empty_tags = htmlOptions.removeEmptyTags;
+              options.page_size = htmlOptions.pageSize;
               options.orientation = htmlOptions.orientation;
             }
             
             // PDF specific options
             if (source === 'PDF') {
               options.quality = convertOptions.quality;
-              options.pdfPageSelection = convertOptions.pdfPageSelection;
+              options.pdf_page_selection = convertOptions.pdfPageSelection;
               if (target === 'GIF') {
-                options.animationDelay = convertOptions.animationDelay;
-                options.loopAnimation = convertOptions.loopAnimation;
+                options.animation_delay = convertOptions.animationDelay;
+                options.loop_animation = convertOptions.loopAnimation;
               }
             }
             
             // TXT specific options
             if (source === 'TXT') {
-              options.pageSize = convertOptions.pageSize;
+              options.page_size = convertOptions.pageSize;
               options.orientation = convertOptions.orientation;
               if (target === 'SPEECH' || target === 'MP3' || target === 'WAV') {
                 options.rate = Math.round(convertOptions.speechSpeed * 150);
                 options.volume = 1.0;
+                options.language = convertOptions.speechLanguage;
+                options.pitch = convertOptions.speechPitch;
               }
             }
             
             // Image output options
             if (['PNG', 'JPG', 'JPEG', 'BMP', 'WEBP'].includes(target)) {
               options.quality = convertOptions.quality;
-              options.backgroundColor = convertOptions.backgroundColor;
+              options.background_color = convertOptions.backgroundColor;
             }
             
             // CSV options
             if (target === 'CSV') {
-              options.csvDelimiter = convertOptions.csvDelimiter;
+              options.csv_delimiter = convertOptions.csvDelimiter;
             }
             
             result = await convertGeneral(file, targetFormat, options);
@@ -935,111 +939,121 @@ function ToolDetailContent({ toolName }) {
               </div>
             ) : source === 'PDF' ? (
               <div className="pdf-specific-options">
-                <div 
-                  className="sub-group-header" 
-                  onClick={() => setIsPdfPagesExpanded(!isPdfPagesExpanded)}
-                >
-                  <span style={{ fontSize: '15px', color: '#334155', fontWeight: '500' }}>页面选择</span>
-                  <svg 
-                    width="14" 
-                    height="14" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="#64748b" 
-                    strokeWidth="2"
-                    style={{ transform: isPdfPagesExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+                {/* 页面选择组 */}
+                <div className={`option-group ${isPdfPagesExpanded ? 'expanded' : ''}`}>
+                  <div 
+                    className="option-group-header" 
+                    onClick={() => setIsPdfPagesExpanded(!isPdfPagesExpanded)}
                   >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
+                    <div className="option-group-title">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00a3ff" strokeWidth="2" style={{ marginRight: '8px' }}>
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="9" y1="15" x2="15" y2="15"/>
+                      </svg>
+                      <span>页面选择</span>
+                    </div>
+                    <svg 
+                      width="16" 
+                      height="16" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2"
+                      style={{ transform: isPdfPagesExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </div>
+
+                  {isPdfPagesExpanded && (
+                    <div className="option-group-content">
+                      <div className="sub-option">
+                        <label>选择页面</label>
+                        <select 
+                          value={convertOptions.pdfPageSelection}
+                          onChange={(e) => setConvertOptions({...convertOptions, pdfPageSelection: e.target.value})}
+                        >
+                          <option>所有页面</option>
+                          <option>页面范围</option>
+                          <option>特定页面</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {isPdfPagesExpanded && (
-                  <div className="sub-option spaced">
-                    <label className="sub-option-label">选择页面</label>
-                    <div className="custom-select-wrapper">
-                      <select 
-                        className="custom-select"
-                        value={convertOptions.pdfPageSelection}
-                        onChange={(e) => setConvertOptions({...convertOptions, pdfPageSelection: e.target.value})}
-                      >
-                        <option>所有页面</option>
-                        <option>页面范围</option>
-                        <option>特定页面</option>
-                      </select>
-                      <svg 
-                        className="custom-select-arrow"
-                        width="12" 
-                        height="12" 
-                        viewBox="0 0 16 16" 
-                        fill="#94a3b8" 
-                      >
-                        <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
-                      </svg>
+                {/* 图片质量选项 */}
+                {['PNG', 'JPG', 'JPEG', 'BMP', 'WEBP'].includes(target) && (
+                  <div className="option-group expanded">
+                    <div className="option-group-header">
+                      <div className="option-group-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00a3ff" strokeWidth="2" style={{ marginRight: '8px' }}>
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                          <circle cx="8.5" cy="8.5" r="1.5"/>
+                          <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        <span>图片质量</span>
+                      </div>
+                    </div>
+                    <div className="option-group-content">
+                      <div className="sub-option">
+                        <label>质量 (1-100)</label>
+                        <input 
+                          type="range" 
+                          min="1" 
+                          max="100" 
+                          value={convertOptions.quality}
+                          onChange={(e) => setConvertOptions({...convertOptions, quality: parseInt(e.target.value)})}
+                        />
+                        <span className="value-label-center">{convertOptions.quality}%</span>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {['JPG', 'BMP', 'WEBP'].includes(target) && (
-                  <div className="sub-option" style={{ marginTop: '20px' }}>
-                    <label style={{ color: '#334155', fontWeight: '600', marginBottom: '12px', display: 'block' }}>质量 (1-100)</label>
-                    <input 
-                      type="range" 
-                      min="1" 
-                      max="100" 
-                      value={convertOptions.quality}
-                      onChange={(e) => setConvertOptions({...convertOptions, quality: parseInt(e.target.value)})}
-                      style={{ width: '100%', marginBottom: '8px' }}
-                    />
-                    <div className="value-label-center" style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
-                      {convertOptions.quality}%
-                    </div>
-                  </div>
-                )}
-
+                {/* GIF 动画选项 */}
                 {target === 'GIF' && (
-                  <>
-                    <div className="sub-option" style={{ marginTop: '20px', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <label style={{ color: '#334155', fontWeight: '600', marginBottom: '8px', display: 'block' }}>动画延迟 (毫秒)</label>
-                      <input 
-                        type="number" 
-                        value={convertOptions.animationDelay}
-                        onChange={(e) => setConvertOptions({...convertOptions, animationDelay: parseInt(e.target.value)})}
-                        style={{ 
-                          width: '100%',
-                          padding: '12px',
-                          border: '1.5px solid #e2e8f0',
-                          borderRadius: '10px',
-                          fontSize: '14px',
-                          color: '#1e293b',
-                          backgroundColor: '#f8fafc',
-                          outline: 'none'
-                        }}
-                      />
+                  <div className="option-group expanded">
+                    <div className="option-group-header">
+                      <div className="option-group-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00a3ff" strokeWidth="2" style={{ marginRight: '8px' }}>
+                          <circle cx="12" cy="12" r="10"/>
+                          <polygon points="10 8 16 12 10 16 10 8"/>
+                        </svg>
+                        <span>动画设置</span>
+                      </div>
                     </div>
-                    <div className="sub-option" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <input 
-                        type="checkbox" 
-                        id="loop-animation"
-                        checked={convertOptions.loopAnimation}
-                        onChange={(e) => setConvertOptions({...convertOptions, loopAnimation: e.target.checked})}
-                        style={{ 
-                          width: '18px', 
-                          height: '18px', 
-                          cursor: 'pointer',
-                          accentColor: '#00a3ff'
-                        }}
-                      />
-                      <label htmlFor="loop-animation" style={{ color: '#334155', fontWeight: '500', cursor: 'pointer', fontSize: '15px' }}>循环动画</label>
+                    <div className="option-group-content">
+                      <div className="sub-option">
+                        <label>动画延迟 (毫秒)</label>
+                        <input 
+                          type="number" 
+                          value={convertOptions.animationDelay}
+                          onChange={(e) => setConvertOptions({...convertOptions, animationDelay: parseInt(e.target.value)})}
+                          min="10"
+                          max="5000"
+                          step="10"
+                        />
+                      </div>
+                      <label className="checkbox-label">
+                        <input 
+                          type="checkbox" 
+                          checked={convertOptions.loopAnimation}
+                          onChange={(e) => setConvertOptions({...convertOptions, loopAnimation: e.target.checked})}
+                        />
+                        <span>循环播放</span>
+                      </label>
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             ) : source === 'TXT' ? (
-              <div className="txt-specific-options">
+              <div className="txt-specific-options" style={{ padding: '0 20px 20px' }}>
                 {target === 'SPEECH' && (
-                  <div className="speech-options">
-                    <div className="sub-option spaced">
-                      <label className="sub-option-label">语音速度</label>
+                  <>
+                    <div className="sub-option" style={{ marginTop: '20px' }}>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>语音速度</label>
                       <input 
                         type="range" 
                         min="0.5" 
@@ -1054,8 +1068,8 @@ function ToolDetailContent({ toolName }) {
                       </div>
                     </div>
 
-                    <div className="sub-option spaced">
-                      <label className="sub-option-label">语音音调</label>
+                    <div className="sub-option" style={{ marginTop: '20px' }}>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>语音音调</label>
                       <input 
                         type="range" 
                         min="0.5" 
@@ -1070,13 +1084,24 @@ function ToolDetailContent({ toolName }) {
                       </div>
                     </div>
 
-                    <div className="sub-option spaced">
-                      <label className="sub-option-label">语音语言</label>
-                      <div className="custom-select-wrapper">
+                    <div className="sub-option" style={{ marginTop: '20px' }}>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>语音语言</label>
+                      <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
-                          className="custom-select"
                           value={convertOptions.speechLanguage}
                           onChange={(e) => setConvertOptions({...convertOptions, speechLanguage: e.target.value})}
+                          style={{ 
+                            width: '100%',
+                            padding: '12px',
+                            border: '1.5px solid #e2e8f0',
+                            borderRadius: '10px',
+                            fontSize: '14px',
+                            color: '#1e293b',
+                            backgroundColor: '#fff',
+                            appearance: 'none',
+                            cursor: 'pointer',
+                            outline: 'none'
+                          }}
                         >
                           <option>英语</option>
                           <option>中文 (普通话)</option>
@@ -1085,22 +1110,28 @@ function ToolDetailContent({ toolName }) {
                           <option>德语</option>
                         </select>
                         <svg 
-                          className="custom-select-arrow"
                           width="12" 
                           height="12" 
                           viewBox="0 0 16 16" 
                           fill="#94a3b8" 
+                          style={{ 
+                            position: 'absolute', 
+                            right: '12px', 
+                            top: '50%', 
+                            transform: 'translateY(-50%)',
+                            pointerEvents: 'none'
+                          }}
                         >
                           <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
                         </svg>
                       </div>
                     </div>
-                  </div>
+                  </>
                 )}
                 
                 {target === 'PDF' && (
                   <>
-                    <div className="sub-option" style={{ marginTop: '10px', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div className="sub-option" style={{ marginTop: '20px' }}>
                       <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>页面大小</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
@@ -1142,7 +1173,7 @@ function ToolDetailContent({ toolName }) {
                       </div>
                     </div>
 
-                    <div className="sub-option" style={{ marginTop: '20px', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div className="sub-option" style={{ marginTop: '20px' }}>
                       <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>方向</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
@@ -1151,15 +1182,14 @@ function ToolDetailContent({ toolName }) {
                           style={{ 
                             width: '100%',
                             padding: '12px',
-                            border: '1.5px solid #00a3ff',
+                            border: '1.5px solid #e2e8f0',
                             borderRadius: '10px',
                             fontSize: '14px',
                             color: '#1e293b',
                             backgroundColor: '#fff',
                             appearance: 'none',
                             cursor: 'pointer',
-                            outline: 'none',
-                            boxShadow: '0 0 0 1px rgba(0, 163, 255, 0.1)'
+                            outline: 'none'
                           }}
                         >
                           <option>纵向</option>
@@ -1261,47 +1291,19 @@ function ToolDetailContent({ toolName }) {
                       </div>
                     </div>
                     
-                    <div className="sub-option" style={{ marginTop: '12px' }}>
-                      <button 
-                        className={`orientation-toggle ${convertOptions.orientation === '横向' ? 'active' : ''}`}
-                        onClick={() => setConvertOptions({
-                          ...convertOptions, 
-                          orientation: convertOptions.orientation === '横向' ? '纵向' : '横向'
-                        })}
-                        style={{
-                          width: '44px',
-                          height: '28px',
-                          padding: '0',
-                          border: '1px solid #64748b',
-                          borderRadius: '2px',
-                          backgroundColor: '#fff',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                        }}
-                      >
-                        <div style={{
-                          width: '32px',
-                          height: '18px',
-                          border: '1.5px solid #64748b',
-                          borderRadius: '1px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: '#f8fafc',
-                          transform: convertOptions.orientation === '横向' ? 'rotate(0deg)' : 'rotate(90deg)',
-                          transition: 'transform 0.2s'
-                        }}>
-                          <div style={{
-                            width: '24px',
-                            height: '10px',
-                            border: '1px solid #cbd5e1',
-                            borderRadius: '0.5px'
-                          }}></div>
-                        </div>
-                      </button>
+                    <div className="sub-option" style={{ marginTop: '20px' }}>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>背景颜色</label>
+                      <div className="color-picker-wrapper">
+                        <input 
+                          type="color" 
+                          value={convertOptions.backgroundColor}
+                          onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                        />
+                        <div 
+                          className="color-preview" 
+                          style={{ backgroundColor: convertOptions.backgroundColor }}
+                        ></div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1312,9 +1314,9 @@ function ToolDetailContent({ toolName }) {
                       <label>YAML 缩进</label>
                       <input 
                         type="range" 
-                        min="2" 
+                        min="1" 
                         max="8" 
-                        step="2"
+                        step="1"
                         value={convertOptions.yamlIndent}
                         onChange={(e) => setConvertOptions({...convertOptions, yamlIndent: parseInt(e.target.value)})}
                       />
@@ -1327,40 +1329,6 @@ function ToolDetailContent({ toolName }) {
               </div>
             ) : source === 'XML' ? (
               <div className="xml-specific-options" style={{ padding: '0 20px 20px' }}>
-                <div className="option-group-content static-options">
-                  {target === 'YAML' && (
-                    <div className="sub-option">
-                      <label>YAML 缩进</label>
-                      <input 
-                        type="range" 
-                        min="2" 
-                        max="8" 
-                        step="2"
-                        value={convertOptions.yamlIndent}
-                        onChange={(e) => setConvertOptions({...convertOptions, yamlIndent: parseInt(e.target.value)})}
-                      />
-                      <div className="value-label-center" style={{ marginTop: '8px', color: '#94a3b8' }}>
-                        {convertOptions.yamlIndent}
-                      </div>
-                    </div>
-                  )}
-                  {target === 'JSON' && (
-                    <div className="sub-option">
-                      <label>JSON 缩进</label>
-                      <input 
-                        type="range" 
-                        min="2" 
-                        max="8" 
-                        step="2"
-                        value={convertOptions.yamlIndent}
-                        onChange={(e) => setConvertOptions({...convertOptions, yamlIndent: parseInt(e.target.value)})}
-                      />
-                      <div className="value-label-center" style={{ marginTop: '8px', color: '#94a3b8' }}>
-                        {convertOptions.yamlIndent}
-                      </div>
-                    </div>
-                  )}
-                </div>
                 {target === 'PDF' && (
                   <>
                     <div className="sub-option" style={{ marginTop: '10px' }}>
@@ -1500,9 +1468,26 @@ function ToolDetailContent({ toolName }) {
                     <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>YAML 缩进</label>
                     <input 
                       type="range" 
-                      min="2" 
+                      min="1" 
                       max="8" 
-                      step="2"
+                      step="1"
+                      value={convertOptions.yamlIndent}
+                      onChange={(e) => setConvertOptions({...convertOptions, yamlIndent: parseInt(e.target.value)})}
+                      style={{ width: '100%', marginBottom: '8px' }}
+                    />
+                    <div className="value-label-center" style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                      {convertOptions.yamlIndent}
+                    </div>
+                  </div>
+                )}
+                {target === 'JSON' && (
+                  <div className="sub-option" style={{ marginTop: '20px' }}>
+                    <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>JSON 缩进</label>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="8" 
+                      step="1"
                       value={convertOptions.yamlIndent}
                       onChange={(e) => setConvertOptions({...convertOptions, yamlIndent: parseInt(e.target.value)})}
                       style={{ width: '100%', marginBottom: '8px' }}

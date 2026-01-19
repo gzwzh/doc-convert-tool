@@ -24,9 +24,9 @@ export const categories = {
       name: "PDF 转换器",
       tools: [
         "PDF To DOC", "PDF To PNG", "PDF To DOCX", "PDF To JPG", "PDF To SVG",
-        "PDF To JSON", "PDF To EPUB", "PDF To AI", "PDF To TXT", "PDF To BASE64",
+        "PDF To JSON", "PDF To EPUB", "PDF To TXT", "PDF To BASE64",
         "PDF To TIFF", "PDF To BMP", "PDF To MD", "PDF To HTML", "PDF To PPT",
-        "PDF To GIF", "PDF To PSD", "PDF To RTF", "PDF To ODT", "PDF To WEBP"
+        "PDF To GIF", "PDF To PSD", "PDF To RTF", "PDF To WEBP"
       ]
     },
     {
@@ -39,9 +39,9 @@ export const categories = {
     {
       name: "XML 转换器",
       tools: [
-        "XML To FILE", "XML To PDF", "XML To SVG", "XML To JPG", "XML To PNG",
-        "XML To CSV", "XML To XLSX", "XML To JSON", "XML To HTML", "XML To YAML",
-        "XML To TEXT"
+        "XML To JSON", "XML To YAML", "XML To CSV", "XML To HTML",
+        "XML To TEXT", "XML To PDF", "XML To XLSX", "XML To PNG",
+        "XML To JPG", "XML To SVG"
       ]
     }
   ]

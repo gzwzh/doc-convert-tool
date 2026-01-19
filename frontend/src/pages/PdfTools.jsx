@@ -31,8 +31,24 @@ function PdfTools() {
   };
 
   const handleSectionClick = (section) => {
-    setActiveSection(section);
-    setSelectedTool(null);
+    // Navigate to specific converter page based on section name
+    const sectionRoutes = {
+      'DOCX 转换器': '/tools/docx',
+      'HTML 转换器': '/tools/html',
+      'JSON 转换器': '/tools/json', 
+      'PDF 转换器': '/tools/pdf',
+      'TXT 转换器': '/tools/txt',
+      'XML 转换器': '/tools/xml'
+    };
+    
+    const route = sectionRoutes[section.name];
+    if (route && route !== '/tools/pdf') {
+      navigate(route);
+    } else {
+      // Stay on current page but switch section
+      setActiveSection(section);
+      setSelectedTool(null);
+    }
   };
 
   if (!activeSection) return null;

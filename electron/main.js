@@ -2,6 +2,9 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// 禁用GPU加速以避免缓存错误
+app.disableHardwareAcceleration();
+
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
@@ -10,14 +13,21 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
+      cache: false, // 禁用缓存
     },
   });
 
   if (app.isPackaged) {
     mainWindow.loadFile(path.join(__dirname, '../frontend/dist/index.html'));
   } else {
-    mainWindow.loadURL('http://localhost:5173');
+    // 前端现在运行在5174端口
+    mainWindow.loadURL('http://localhost:5174', {
+      extraHeaders: 'pragma: no-cache\n' // 禁用HTTP缓存
+    });
     mainWindow.webContents.openDevTools();
+    
+    // 禁用缓存
+    mainWindow.webContents.session.clearCache();
   }
 }
 

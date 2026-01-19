@@ -14,6 +14,9 @@ from backend.converters.html_to_txt import HtmlToTxtConverter
 from backend.converters.html_to_markdown import HtmlToMarkdownConverter
 from backend.converters.html_to_image import HtmlToImageConverter
 from backend.converters.html_to_docx import HtmlToDocxConverter
+from backend.converters.html_to_json import HtmlToJsonConverter
+from backend.converters.html_to_gif import HtmlToGifConverter
+from backend.converters.html_to_svg import HtmlToSvgConverter
 from backend.converters.pdf_to_txt import PdfToTxtConverter
 from backend.converters.pdf_to_json import PdfToJsonConverter
 from backend.converters.pdf_to_base64 import PdfToBase64Converter
@@ -40,8 +43,15 @@ from backend.converters.xml_to_xlsx import XmlToXlsxConverter
 from backend.converters.txt_to_html import TxtToHtmlConverter
 from backend.converters.pdf_to_html import PdfToHtmlConverter
 from backend.converters.pdf_to_image import PdfToImageConverter
+from backend.converters.pdf_to_ppt import PdfToPptConverter
 from backend.converters.json_to_html import JsonToHtmlConverter
 from backend.converters.xml_to_html import XmlToHtmlConverter
+from backend.converters.json_to_image import JsonToImageConverter
+from backend.converters.json_to_svg import JsonToSvgConverter
+from backend.converters.xml_to_image import XmlToImageConverter
+from backend.converters.xml_to_svg import XmlToSvgConverter
+from backend.converters.pdf_to_rtf import PdfToRtfConverter
+from backend.converters.pdf_to_psd import PdfToPsdConverter
 
 # 配置常量（后续可移至 config.py）
 UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
@@ -66,6 +76,10 @@ class ConverterService:
             ('json', 'html'): JsonToHtmlConverter(),
             ('json', 'pdf'): JsonToPdfConverter(),
             ('json', 'base64'): JsonToBase64Converter(),
+            ('json', 'png'): JsonToImageConverter(),
+            ('json', 'jpg'): JsonToImageConverter(),
+            ('json', 'jpeg'): JsonToImageConverter(),
+            ('json', 'svg'): JsonToSvgConverter(),
             # XML 转换
             ('xml', 'json'): XmlToJsonConverter(),
             ('xml', 'yaml'): XmlToYamlConverter(),
@@ -75,6 +89,10 @@ class ConverterService:
             ('xml', 'txt'): XmlToTxtConverter(),
             ('xml', 'pdf'): XmlToPdfConverter(),
             ('xml', 'xlsx'): XmlToXlsxConverter(),
+            ('xml', 'png'): XmlToImageConverter(),
+            ('xml', 'jpg'): XmlToImageConverter(),
+            ('xml', 'jpeg'): XmlToImageConverter(),
+            ('xml', 'svg'): XmlToSvgConverter(),
             # DOCX 转换
             ('docx', 'txt'): DocxToTxtConverter(),
             ('docx', 'pdf'): DocxToPdfConverter(),
@@ -93,6 +111,9 @@ class ConverterService:
             ('html', 'jpeg'): HtmlToImageConverter(),
             ('html', 'docx'): HtmlToDocxConverter(),
             ('html', 'doc'): HtmlToDocxConverter(),
+            ('html', 'json'): HtmlToJsonConverter(),
+            ('html', 'gif'): HtmlToGifConverter(),
+            ('html', 'svg'): HtmlToSvgConverter(),
             # PDF 转换
             ('pdf', 'txt'): PdfToTxtConverter(),
             ('pdf', 'docx'): PdfToDocxConverter(),
@@ -110,6 +131,10 @@ class ConverterService:
             ('pdf', 'epub'): PdfToEpubConverter(),
             ('pdf', 'gif'): PdfToGifConverter(),
             ('pdf', 'webp'): PdfToWebpConverter(),
+            ('pdf', 'pptx'): PdfToPptConverter(),
+            ('pdf', 'ppt'): PdfToPptConverter(),
+            ('pdf', 'rtf'): PdfToRtfConverter(),
+            ('pdf', 'psd'): PdfToPsdConverter(),
             # TXT 转换
             ('txt', 'pdf'): TxtToPdfConverter(),
             ('txt', 'html'): TxtToHtmlConverter(),
