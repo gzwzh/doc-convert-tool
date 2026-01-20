@@ -20,8 +20,8 @@ function createWindow() {
   if (app.isPackaged) {
     mainWindow.loadFile(path.join(__dirname, '../frontend/dist/index.html'));
   } else {
-    // 前端现在运行在5174端口
-    mainWindow.loadURL('http://localhost:5174', {
+    // 前端在 Vite 开发服务器 5173 端口运行
+    mainWindow.loadURL('http://localhost:5173', {
       extraHeaders: 'pragma: no-cache\n' // 禁用HTTP缓存
     });
     mainWindow.webContents.openDevTools();

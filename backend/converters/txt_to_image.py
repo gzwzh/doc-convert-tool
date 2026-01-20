@@ -32,7 +32,7 @@ class TxtToImageConverter(BaseConverter):
             # 配置参数
             font_size = options.get('font_size', 16)
             padding = options.get('padding', 40)
-            bg_color = options.get('bg_color', '#ffffff')
+            bg_color = options.get('bg_color') or options.get('background_color', '#ffffff')
             text_color = options.get('text_color', '#000000')
             max_width = options.get('max_width', 800)
             line_spacing = options.get('line_spacing', 8)

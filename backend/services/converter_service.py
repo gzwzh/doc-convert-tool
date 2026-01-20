@@ -150,7 +150,7 @@ class ConverterService:
             ('txt', 'hex'): TxtToHexConverter(),
         }
     
-    def convert_file(self, input_path: str, target_format: str, **options) -> Dict[str, Any]:
+    def convert_file(self, input_path: str, target_format: str, original_filename: str = None, **options) -> Dict[str, Any]:
         """
         统一转换入口
         """
@@ -161,21 +161,40 @@ class ConverterService:
         if converter_key not in self.converters:
             raise ValueError(f"Unsupported conversion: {source_format} to {target_format}")
         
-        # 生成输出路径
-        unique_id = str(uuid.uuid4())
-        output_filename = f"{unique_id}.{target_format}"
-        output_path = os.path.join(DOWNLOAD_DIR, output_filename)
+        # 生成输出路径，保留原始文件名
+        if original_filename:
+            # 移除原始扩展名，保留文件名
+            base_name = os.path.splitext(original_filename)[0]
+            output_filename = f"{base_name}.{target_format}"
+            output_path = os.path.join(DOWNLOAD_DIR, output_filename)
+            
+            # 如果文件已存在，添加数字后缀
+            counter = 1
+            while os.path.exists(output_path):
+                output_filename = f"{base_name}{counter}.{target_format}"
+                output_path = os.path.join(DOWNLOAD_DIR, output_filename)
+                counter += 1
+        else:
+            unique_id = str(uuid.uuid4())
+            output_filename = f"{unique_id}.{target_format}"
+            output_path = os.path.join(DOWNLOAD_DIR, output_filename)
         
         # 调用具体转换器
         converter = self.converters[converter_key]
         result = converter.convert(input_path, output_path, **options)
         
+        # 检查实际输出文件（可能是 ZIP）
+        actual_output_path = result.get('output_path', output_path)
+        actual_filename = os.path.basename(actual_output_path)
+        
         # 补充返回信息
-        print(f"[ConverterService] Output path: {output_path}")
-        print(f"[ConverterService] Output file exists: {os.path.exists(output_path)}")
+        print(f"[ConverterService] Expected output: {output_path}")
+        print(f"[ConverterService] Actual output: {actual_output_path}")
+        print(f"[ConverterService] File exists: {os.path.exists(actual_output_path)}")
+        
         result.update({
-            'filename': output_filename,
-            'download_url': f"/downloads/{output_filename}"
+            'filename': actual_filename,
+            'download_url': f"/downloads/{actual_filename}"
         })
         
         return result

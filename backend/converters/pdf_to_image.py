@@ -1,19 +1,19 @@
-import fitz  # PyMuPDF
+import fitz
 import os
 import zipfile
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from .base import BaseConverter
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 class PdfToImageConverter(BaseConverter):
-    """PDF 到 图片转换器（优化版 - 参考 conversion_core）
+    """PDF 到 图片转换器（优化版 - 支持文件夹输出和水印）
     
     优化内容：
-    1. 添加质量设置（ultra/high/medium）
-    2. 添加合并模式（垂直/水平拼接）
-    3. 添加透明背景支持
-    4. 添加进度回调
-    5. 更灵活的DPI设置
+    1. 支持多页输出为文件夹
+    2. 支持背景颜色设置
+    3. 支持水印添加
+    4. 支持长图拼接
+    5. 添加质量设置
     """
     
     # 质量预设
@@ -37,15 +37,27 @@ class PdfToImageConverter(BaseConverter):
             target_ext = output_path.split('.')[-1].lower()
             if target_ext == 'jpeg': target_ext = 'jpg'
             
-            quality = options.get('quality', 'high')  # ultra/high/medium
-            merge = options.get('merge', False)  # 是否合并多页
-            merge_order = options.get('merge_order', 'vertical')  # vertical/horizontal
-            transparent = options.get('transparent', False)  # 透明背景
+            quality = options.get('quality', 85)  # 1-100
+            merge = options.get('merge', True)  # 默认合并为长图
+            background_color = options.get('background_color', '#ffffff')
             
-            # 获取质量设置
-            quality_settings = self.QUALITY_SETTINGS.get(quality, self.QUALITY_SETTINGS['high'])
-            dpi = quality_settings['dpi']
-            zoom = dpi / 72.0  # 转换为缩放比例
+            # 水印选项
+            watermark_text = options.get('watermark_text', '')
+            watermark_opacity = options.get('watermark_opacity', 30)
+            watermark_size = options.get('watermark_size', 40)
+            watermark_color = options.get('watermark_color', '#cccccc')
+            watermark_angle = options.get('watermark_angle', 45)
+            watermark_position = options.get('watermark_position', 'center')
+            
+            # DPI 设置
+            if quality >= 90:
+                dpi = 300
+            elif quality >= 70:
+                dpi = 200
+            else:
+                dpi = 150
+            
+            zoom = dpi / 72.0
             
             self.update_progress(input_path, 10)
             
@@ -56,9 +68,9 @@ class PdfToImageConverter(BaseConverter):
                 doc.close()
                 raise Exception("PDF file is empty")
             
+            print(f"[PdfToImage] PDF 共 {page_count} 页")
             self.update_progress(input_path, 15)
             
-            temp_files = []
             base_name = os.path.splitext(os.path.basename(output_path))[0]
             output_dir = os.path.dirname(output_path) or os.getcwd()
             
@@ -68,12 +80,14 @@ class PdfToImageConverter(BaseConverter):
             # 转换每一页
             for page_num in range(page_count):
                 page = doc.load_page(page_num)
-                pix = page.get_pixmap(matrix=mat, alpha=transparent)
                 
-                # 转换为 PIL Image
-                if transparent:
+                if background_color and background_color.lower() != '#ffffff':
+                    pix = page.get_pixmap(matrix=mat, alpha=True)
                     img = Image.frombytes("RGBA", [pix.width, pix.height], pix.samples)
+                    print(f"[PdfToImage] 应用背景颜色: {background_color}")
+                    img = self._apply_background_color(img, background_color)
                 else:
+                    pix = page.get_pixmap(matrix=mat, alpha=False)
                     img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                 
                 images.append(img)
@@ -85,11 +99,22 @@ class PdfToImageConverter(BaseConverter):
             doc.close()
             self.update_progress(input_path, 65)
             
-            # 处理合并模式
+            # 应用水印
+            if watermark_text:
+                print(f"[PdfToImage] 应用水印: {watermark_text}")
+                images = [self._apply_watermark(
+                    img, watermark_text, watermark_opacity, 
+                    watermark_size, watermark_color, watermark_angle, watermark_position
+                ) for img in images]
+            
+            self.update_progress(input_path, 75)
+            
+            # 处理输出
             if merge and page_count > 1:
-                final_output = self._merge_images(
-                    images, output_path, target_ext, 
-                    merge_order, transparent, quality_settings
+                # 合并为长图
+                print(f"[PdfToImage] 合并 {page_count} 页为长图")
+                final_output = self._merge_to_long_image(
+                    images, output_path, target_ext, quality
                 )
                 self.update_progress(input_path, 100)
                 
@@ -98,14 +123,13 @@ class PdfToImageConverter(BaseConverter):
                     'output_path': final_output,
                     'size': self.get_output_size(final_output),
                     'page_count': page_count,
-                    'merged': True,
-                    'quality': quality
+                    'merged': True
                 }
             else:
-                # 保存单独的图片
-                final_output = self._save_separate_images(
-                    images, output_path, target_ext, 
-                    base_name, output_dir, quality_settings
+                # 保存为文件夹
+                print(f"[PdfToImage] 保存 {page_count} 页到文件夹")
+                final_output = self._save_to_folder(
+                    images, output_path, target_ext, base_name, output_dir, quality
                 )
                 self.update_progress(input_path, 100)
                 
@@ -114,87 +138,210 @@ class PdfToImageConverter(BaseConverter):
                     'output_path': final_output,
                     'size': self.get_output_size(final_output),
                     'page_count': page_count,
-                    'merged': False,
-                    'quality': quality
+                    'merged': False
                 }
             
         except Exception as e:
             self.cleanup_on_error(output_path)
             raise Exception(f"PDF to Image conversion failed: {str(e)}")
     
-    def _merge_images(self, images, output_path, target_ext, 
-                     merge_order, transparent, quality_settings):
-        """合并多张图片"""
-        if merge_order == 'vertical':
-            # 垂直拼接
-            total_width = max(img.width for img in images)
-            total_height = sum(img.height for img in images)
-            
-            mode = 'RGBA' if transparent else 'RGB'
-            bg_color = (255, 255, 255, 0) if transparent else (255, 255, 255)
-            merged = Image.new(mode, (total_width, total_height), bg_color)
-            
-            y_offset = 0
-            for img in images:
-                merged.paste(img, (0, y_offset))
-                y_offset += img.height
-        else:
-            # 水平拼接
-            total_width = sum(img.width for img in images)
-            total_height = max(img.height for img in images)
-            
-            mode = 'RGBA' if transparent else 'RGB'
-            bg_color = (255, 255, 255, 0) if transparent else (255, 255, 255)
-            merged = Image.new(mode, (total_width, total_height), bg_color)
-            
-            x_offset = 0
-            for img in images:
-                merged.paste(img, (x_offset, 0))
-                x_offset += img.width
+    def _apply_background_color(self, img: Image.Image, color: str) -> Image.Image:
+        try:
+            if color.startswith('#'):
+                color = color[1:]
+            r_bg = int(color[0:2], 16)
+            g_bg = int(color[2:4], 16)
+            b_bg = int(color[4:6], 16)
+
+            if (r_bg, g_bg, b_bg) == (255, 255, 255):
+                if img.mode != 'RGB':
+                    return img.convert('RGB')
+                return img
+
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+
+            background = Image.new('RGB', img.size, (r_bg, g_bg, b_bg))
+            alpha = img.split()[3]
+            background.paste(img, mask=alpha)
+
+            return background
+        except Exception as e:
+            print(f"[PdfToImage] 背景颜色应用失败: {e}")
+            return img
+    
+    def _get_watermark_font(self, text: str, size: int):
+        has_non_ascii = any(ord(ch) > 127 for ch in text)
         
-        # 保存合并后的图片
-        self._save_image(merged, output_path, target_ext, quality_settings)
+        chinese_fonts = [
+            "msyh.ttc",
+            "msyh.ttf",
+            "simhei.ttf",
+            "simhei.ttc",
+            "simfang.ttf",
+            "simfang.ttc",
+            "simkai.ttf",
+            "simkai.ttc",
+            "simsun.ttc",
+        ]
+        latin_fonts = ["arial.ttf"]
+        
+        if has_non_ascii:
+            candidates = chinese_fonts + latin_fonts
+        else:
+            candidates = latin_fonts + chinese_fonts
+        font_paths = []
+        windows_dir = os.environ.get("WINDIR")
+        if windows_dir:
+            fonts_dir = os.path.join(windows_dir, "Fonts")
+        else:
+            fonts_dir = None
+        
+        for name in candidates:
+            font_paths.append(name)
+            if fonts_dir:
+                font_paths.append(os.path.join(fonts_dir, name))
+        
+        for path in font_paths:
+            try:
+                return ImageFont.truetype(path, size)
+            except Exception:
+                continue
+        
+        return ImageFont.load_default()
+    
+    def _apply_watermark(self, img: Image.Image, text: str, opacity: int, 
+                        size: int, color: str, angle: int, position: str = "center") -> Image.Image:
+        """应用水印"""
+        try:
+            # 创建水印层
+            watermark = Image.new('RGBA', img.size, (0, 0, 0, 0))
+            draw = ImageDraw.Draw(watermark)
+            
+            # 解析颜色
+            if color.startswith('#'):
+                color = color[1:]
+            r = int(color[0:2], 16)
+            g = int(color[2:4], 16)
+            b = int(color[4:6], 16)
+            alpha = int(255 * (opacity / 100))
+            
+            font = self._get_watermark_font(text, size)
+            
+            # 使用 textbbox 获取精确边界,并考虑可能为负的偏移量,防止文字被截断
+            bbox = draw.textbbox((0, 0), text, font=font)
+            x0, y0, x1, y1 = bbox
+            text_width = x1 - x0
+            text_height = y1 - y0
+            
+            text_img = Image.new('RGBA', (text_width, text_height), (0, 0, 0, 0))
+            text_draw = ImageDraw.Draw(text_img)
+            # 将绘制起点平移 -x0,-y0,保证完整包裹字形
+            text_draw.text((-x0, -y0), text, fill=(r, g, b, alpha), font=font)
+            
+            if angle != 0:
+                text_img = text_img.rotate(angle, expand=True)
+            
+            tw, th = text_img.size
+            margin_x = max(10, int(img.width * 0.03))
+            margin_y = max(10, int(img.height * 0.03))
+            
+            # 如果水印整体尺寸超过图片可用区域,按比例缩放以保证完整显示
+            max_w = max(1, img.width - 2 * margin_x)
+            max_h = max(1, img.height - 2 * margin_y)
+            scale = min(max_w / tw, max_h / th, 1.0)
+            if scale < 1.0:
+                new_w = max(1, int(tw * scale))
+                new_h = max(1, int(th * scale))
+                text_img = text_img.resize((new_w, new_h), resample=Image.LANCZOS)
+                tw, th = text_img.size
+            
+            pos = position or "center"
+            pos = pos.lower()
+            
+            if pos.endswith("left"):
+                x = margin_x
+            elif pos.endswith("right"):
+                x = img.width - tw - margin_x
+            else:
+                x = (img.width - tw) // 2
+            
+            if pos.startswith("top"):
+                y = margin_y
+            elif pos.startswith("bottom"):
+                y = img.height - th - margin_y
+            else:
+                y = (img.height - th) // 2
+            
+            x = max(0, min(img.width - tw, x))
+            y = max(0, min(img.height - th, y))
+            
+            watermark.paste(text_img, (x, y), text_img)
+            
+            img_with_watermark = img.convert('RGBA')
+            img_with_watermark = Image.alpha_composite(img_with_watermark, watermark)
+            return img_with_watermark.convert('RGB')
+        except Exception as e:
+            print(f"[PdfToImage] 水印应用失败: {e}")
+            return img
+    
+    def _merge_to_long_image(self, images: List[Image.Image], output_path: str, 
+                            target_ext: str, quality: int) -> str:
+        """合并为长图"""
+        # 垂直拼接
+        total_width = max(img.width for img in images)
+        total_height = sum(img.height for img in images)
+        
+        merged = Image.new('RGB', (total_width, total_height), (255, 255, 255))
+        
+        y_offset = 0
+        for img in images:
+            merged.paste(img, (0, y_offset))
+            y_offset += img.height
+        
+        # 保存
+        self._save_image(merged, output_path, target_ext, quality)
         return output_path
     
-    def _save_separate_images(self, images, output_path, target_ext, 
-                              base_name, output_dir, quality_settings):
-        """保存单独的图片"""
-        temp_files = []
+    def _save_to_folder(self, images: List[Image.Image], output_path: str, 
+                       target_ext: str, base_name: str, output_dir: str, quality: int) -> str:
+        """保存到文件夹"""
+        # 创建文件夹
+        folder_path = os.path.join(output_dir, base_name)
+        os.makedirs(folder_path, exist_ok=True)
         
+        # 保存每张图片
         for idx, img in enumerate(images):
-            if len(images) == 1:
-                page_filename = output_path
-            else:
-                page_filename = os.path.join(output_dir, f"{base_name}_page_{idx+1}.{target_ext}")
-            
-            self._save_image(img, page_filename, target_ext, quality_settings)
-            temp_files.append(page_filename)
+            filename = os.path.join(folder_path, f"{idx + 1}.{target_ext}")
+            self._save_image(img, filename, target_ext, quality)
         
-        # 多页打包 ZIP
-        if len(images) > 1:
-            final_output = os.path.splitext(output_path)[0] + ".zip"
-            with zipfile.ZipFile(final_output, 'w') as zf:
-                for f in temp_files:
-                    zf.write(f, os.path.basename(f))
-                    os.remove(f)
-            return final_output
-        else:
-            return output_path
+        # 打包为 ZIP
+        zip_path = output_path.replace(f'.{target_ext}', '.zip')
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for idx in range(len(images)):
+                filename = os.path.join(folder_path, f"{idx + 1}.{target_ext}")
+                zf.write(filename, f"{base_name}/{idx + 1}.{target_ext}")
+        
+        # 清理临时文件夹
+        import shutil
+        shutil.rmtree(folder_path)
+        
+        return zip_path
     
-    def _save_image(self, img, path, target_ext, quality_settings):
+    def _save_image(self, img: Image.Image, path: str, target_ext: str, quality: int):
         """保存图片"""
         if target_ext in ['jpg', 'jpeg']:
-            # JPEG 不支持透明通道
             if img.mode == 'RGBA':
-                # 创建白色背景
                 background = Image.new('RGB', img.size, (255, 255, 255))
                 background.paste(img, mask=img.split()[3])
                 img = background
             elif img.mode != 'RGB':
                 img = img.convert('RGB')
             
-            img.save(path, 'JPEG', quality=quality_settings['quality'], optimize=True)
+            img.save(path, 'JPEG', quality=quality, optimize=True)
         elif target_ext == 'png':
+            if img.mode == 'RGBA':
+                img = img.convert('RGB')
             img.save(path, 'PNG', optimize=True)
         else:
             img.save(path, target_ext.upper())

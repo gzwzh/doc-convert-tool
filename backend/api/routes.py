@@ -37,7 +37,12 @@ async def convert_json(
         options = validator.validate_json_options(options)
         
         # 4. 执行转换
-        result = converter_service.convert_file(input_path, target_format, **options)
+        result = converter_service.convert_file(
+            input_path, 
+            target_format, 
+            original_filename=file.filename,
+            **options
+        )
         
         return result
         
@@ -82,7 +87,12 @@ async def convert_xml(
         options = validator.validate_json_options(options)
         
         # 4. 执行转换
-        result = converter_service.convert_file(input_path, target_format, **options)
+        result = converter_service.convert_file(
+            input_path, 
+            target_format, 
+            original_filename=file.filename,
+            **options
+        )
         
         return result
         
@@ -119,6 +129,13 @@ async def convert_general(
     # 图片选项
     quality: Optional[int] = Form(85),
     background_color: Optional[str] = Form('#ffffff'),
+    # 水印选项
+    watermark_text: Optional[str] = Form(''),
+    watermark_opacity: Optional[int] = Form(30),
+    watermark_size: Optional[int] = Form(40),
+    watermark_color: Optional[str] = Form('#cccccc'),
+    watermark_angle: Optional[int] = Form(45),
+    watermark_position: Optional[str] = Form('center'),
     # CSV 选项
     csv_delimiter: Optional[str] = Form(None),
     # PDF 页面选择
@@ -163,6 +180,12 @@ async def convert_general(
             'orientation': orientation,
             'quality': quality,
             'background_color': background_color,
+            'watermark_text': watermark_text,
+            'watermark_opacity': watermark_opacity,
+            'watermark_size': watermark_size,
+            'watermark_color': watermark_color,
+            'watermark_angle': watermark_angle,
+            'watermark_position': watermark_position,
             'csv_delimiter': csv_delimiter,
             'pdf_page_selection': pdf_page_selection,
             'animation_delay': animation_delay,
@@ -170,7 +193,12 @@ async def convert_general(
         }
         
         # 5. 执行转换
-        result = converter_service.convert_file(input_path, target_format, **options)
+        result = converter_service.convert_file(
+            input_path, 
+            target_format, 
+            original_filename=file.filename,
+            **options
+        )
         
         return result
         

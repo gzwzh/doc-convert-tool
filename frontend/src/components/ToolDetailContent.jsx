@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+﻿﻿import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import JSZip from 'jszip';
@@ -15,7 +15,7 @@ function ToolDetailContent({ toolName }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [conversionResults, setConversionResults] = useState({}); // Map of file index to result
-  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [isWatermarkExpanded, setIsWatermarkExpanded] = useState(false);
   const [isPdfPagesExpanded, setIsPdfPagesExpanded] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -44,7 +44,8 @@ function ToolDetailContent({ toolName }) {
     speechSpeed: 1.0,
     speechPitch: 1.0,
     speechLanguage: '中文 (普通话)',
-    pageSize: 'A4'
+    pageSize: 'A4',
+    docxPdfPageRange: ''
   });
   const [htmlOptions, setHtmlOptions] = useState({
     enablePreview: false,
@@ -77,13 +78,17 @@ function ToolDetailContent({ toolName }) {
   const { source, target } = parseToolName(toolName);
 
   // Determine if the right sidebar should be shown
-  const showSidebar = source === 'JSON' 
+  let showSidebar = source === 'JSON' 
     ? ['CSV', 'JPG', 'YAML', 'XML'].includes(target)
     : source === 'TXT'
     ? ['SPEECH', 'PDF', 'JPG', 'PNG'].includes(target)
     : source === 'XML'
     ? ['PDF', 'JPG', 'CSV', 'YAML'].includes(target)
     : true;
+
+  if (source === 'DOCX' && (target === 'TXT' || target === 'EPUB' || target === 'PDF')) {
+    showSidebar = false;
+  }
 
   const handleHomeClick = () => {
     console.log('Navigating to home page');
@@ -210,7 +215,7 @@ function ToolDetailContent({ toolName }) {
       toast.error('没有可下载的文件');
       return;
     }
-    setShowDownloadMenu(!showDownloadMenu);
+    setShowDownloadModal(true);
   };
 
   const handleBatchDownload = async () => {
@@ -219,7 +224,7 @@ function ToolDetailContent({ toolName }) {
       
     if (downloadableFiles.length === 0) return;
     
-    setShowDownloadMenu(false);
+    setShowDownloadModal(false);
 
             // 1. Electron Environment: Use IPC
             if (window.electronAPI) {
@@ -353,7 +358,7 @@ function ToolDetailContent({ toolName }) {
       
     if (downloadableFiles.length === 0) return;
 
-    setShowDownloadMenu(false);
+    setShowDownloadModal(false);
     const zip = new JSZip();
     const toastId = toast.loading('正在打包文件...');
     
@@ -488,7 +493,30 @@ function ToolDetailContent({ toolName }) {
             // Prepare options based on source format
             const options = {};
             
-            // HTML specific options
+            if (source === 'DOCX') {
+              if (['PNG', 'JPG', 'JPEG'].includes(target)) {
+                options.quality = convertOptions.quality;
+                options.backgroundColor = convertOptions.backgroundColor;
+                options.watermark_text = watermarkOptions.text;
+                options.watermark_opacity = watermarkOptions.opacity;
+                options.watermark_size = watermarkOptions.size;
+                options.watermark_color = watermarkOptions.color;
+                options.watermark_angle = watermarkOptions.angle;
+                options.watermark_position = watermarkOptions.position;
+              }
+              if (target === 'PDF') {
+                options.page_size = convertOptions.pageSize;
+                options.orientation = convertOptions.orientation;
+                options.page_range = convertOptions.docxPdfPageRange;
+                options.watermark_text = watermarkOptions.text;
+                options.watermark_opacity = watermarkOptions.opacity;
+                options.watermark_size = watermarkOptions.size;
+                options.watermark_color = watermarkOptions.color;
+                options.watermark_angle = watermarkOptions.angle;
+                options.watermark_position = watermarkOptions.position;
+              }
+            }
+            
             if (source === 'HTML') {
               options.enable_preview = htmlOptions.enablePreview;
               options.css_handling = htmlOptions.cssHandling;
@@ -500,15 +528,55 @@ function ToolDetailContent({ toolName }) {
               options.remove_empty_tags = htmlOptions.removeEmptyTags;
               options.page_size = htmlOptions.pageSize;
               options.orientation = htmlOptions.orientation;
+              if (target === 'PDF') {
+                options.watermark_text = watermarkOptions.text;
+                options.watermark_opacity = watermarkOptions.opacity;
+                options.watermark_size = watermarkOptions.size;
+                options.watermark_color = watermarkOptions.color;
+                options.watermark_angle = watermarkOptions.angle;
+                options.watermark_position = watermarkOptions.position;
+              }
+              
+              // 图片输出选项
+              if (['PNG', 'JPG', 'JPEG', 'GIF', 'SVG'].includes(target)) {
+                options.quality = convertOptions.quality;
+                options.backgroundColor = convertOptions.backgroundColor;
+                // 水印选项
+                options.watermark_text = watermarkOptions.text;
+                options.watermark_opacity = watermarkOptions.opacity;
+                options.watermark_size = watermarkOptions.size;
+                options.watermark_color = watermarkOptions.color;
+                options.watermark_angle = watermarkOptions.angle;
+                options.watermark_position = watermarkOptions.position;
+              }
             }
             
             // PDF specific options
             if (source === 'PDF') {
               options.quality = convertOptions.quality;
               options.pdf_page_selection = convertOptions.pdfPageSelection;
+              // 图片输出选项
+              if (['PNG', 'JPG', 'JPEG', 'BMP', 'WEBP', 'SVG'].includes(target)) {
+                options.backgroundColor = convertOptions.backgroundColor;
+                // 水印选项
+                options.watermark_text = watermarkOptions.text;
+                options.watermark_opacity = watermarkOptions.opacity;
+                options.watermark_size = watermarkOptions.size;
+                options.watermark_color = watermarkOptions.color;
+                options.watermark_angle = watermarkOptions.angle;
+                options.watermark_position = watermarkOptions.position;
+              }
               if (target === 'GIF') {
                 options.animation_delay = convertOptions.animationDelay;
                 options.loop_animation = convertOptions.loopAnimation;
+                options.backgroundColor = convertOptions.backgroundColor;
+                // 水印选项
+                options.watermark_text = watermarkOptions.text;
+                options.watermark_opacity = watermarkOptions.opacity;
+                options.watermark_size = watermarkOptions.size;
+                options.watermark_color = watermarkOptions.color;
+                options.watermark_angle = watermarkOptions.angle;
+                options.watermark_position = watermarkOptions.position;
               }
             }
             
@@ -516,6 +584,18 @@ function ToolDetailContent({ toolName }) {
             if (source === 'TXT') {
               options.page_size = convertOptions.pageSize;
               options.orientation = convertOptions.orientation;
+              // 图片输出选项
+              if (['PNG', 'JPG', 'JPEG'].includes(target)) {
+                options.quality = convertOptions.quality;
+                options.backgroundColor = convertOptions.backgroundColor;
+                // 水印选项
+                options.watermark_text = watermarkOptions.text;
+                options.watermark_opacity = watermarkOptions.opacity;
+                options.watermark_size = watermarkOptions.size;
+                options.watermark_color = watermarkOptions.color;
+                options.watermark_angle = watermarkOptions.angle;
+                options.watermark_position = watermarkOptions.position;
+              }
               if (target === 'SPEECH' || target === 'MP3' || target === 'WAV') {
                 options.rate = Math.round(convertOptions.speechSpeed * 150);
                 options.volume = 1.0;
@@ -524,13 +604,48 @@ function ToolDetailContent({ toolName }) {
               }
             }
             
-            // Image output options
-            if (['PNG', 'JPG', 'JPEG', 'BMP', 'WEBP'].includes(target)) {
-              options.quality = convertOptions.quality;
-              options.background_color = convertOptions.backgroundColor;
+            // JSON specific options
+            if (source === 'JSON') {
+              // 图片输出选项
+              if (['PNG', 'JPG', 'JPEG', 'SVG'].includes(target)) {
+                options.quality = convertOptions.quality;
+                options.backgroundColor = convertOptions.backgroundColor;
+                // 水印选项
+                options.watermark_text = watermarkOptions.text;
+                options.watermark_opacity = watermarkOptions.opacity;
+                options.watermark_size = watermarkOptions.size;
+                options.watermark_color = watermarkOptions.color;
+                options.watermark_angle = watermarkOptions.angle;
+                options.watermark_position = watermarkOptions.position;
+              }
+              // PDF 输出选项
+              if (target === 'PDF') {
+                options.quality = convertOptions.quality;
+                options.backgroundColor = convertOptions.backgroundColor;
+              }
             }
             
-            // CSV options
+            // XML specific options
+            if (source === 'XML') {
+              // 图片输出选项
+              if (['PNG', 'JPG', 'JPEG', 'SVG'].includes(target)) {
+                options.quality = convertOptions.quality;
+                options.backgroundColor = convertOptions.backgroundColor;
+                // 水印选项
+                options.watermark_text = watermarkOptions.text;
+                options.watermark_opacity = watermarkOptions.opacity;
+                options.watermark_size = watermarkOptions.size;
+                options.watermark_color = watermarkOptions.color;
+                options.watermark_angle = watermarkOptions.angle;
+              }
+              // PDF 输出选项
+              if (target === 'PDF') {
+                options.quality = convertOptions.quality;
+                options.backgroundColor = convertOptions.backgroundColor;
+              }
+            }
+            
+            // CSV options (通用)
             if (target === 'CSV') {
               options.csv_delimiter = convertOptions.csvDelimiter;
             }
@@ -639,38 +754,44 @@ function ToolDetailContent({ toolName }) {
             <div className="file-list-container">
               {files.map((fileObj) => (
                 <div key={fileObj.id} className="file-list-item">
-                  <div className="file-icon-small">{source}</div>
-                  
-                  <div className="file-info">
-                    <div className="file-name" title={fileObj.file.name}>{fileObj.file.name}</div>
-                    <div className="file-meta">
-                      {(fileObj.file.size / 1024).toFixed(2)} KB
-                      {conversionResults[fileObj.id] && (
-                         <span className={`conversion-status ${conversionResults[fileObj.id].error ? 'error' : 'success'}`}>
-                           {conversionResults[fileObj.id].error ? '转换失败' : '转换成功'}
-                         </span>
-                      )}
+                  <div className="file-item-left">
+                    <div className={`file-icon-circle ${isConverting ? 'loading' : ''}`}>
+                      <span className="file-type-text">{source}</span>
+                      {isConverting && <div className="loading-ring"></div>}
+                    </div>
+                    <div className="file-info">
+                      <div className="file-name" title={fileObj.file.name}>{fileObj.file.name}</div>
+                      <div className="file-size">{(fileObj.file.size / 1024).toFixed(2)} KB</div>
                     </div>
                   </div>
 
-                  <div className="file-actions">
+                  <div className="file-item-right">
                     {conversionResults[fileObj.id] && !conversionResults[fileObj.id].error && (
                       <a 
                         href={`${API_BASE_URL}${conversionResults[fileObj.id].download_url}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn-icon download"
+                        className="status-btn finish"
                         title="下载"
                       >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Finish
                       </a>
+                    )}
+                    {conversionResults[fileObj.id] && conversionResults[fileObj.id].error && (
+                      <span className="status-btn error">Error</span>
+                    )}
+                    {!conversionResults[fileObj.id] && isConverting && (
+                      <span className="status-btn converting">Converting...</span>
                     )}
                     <button 
                       onClick={() => handleRemoveFile(fileObj.id)}
-                      className="btn-icon delete"
-                      title="移除"
+                      className="btn-delete"
+                      title="删除"
                     >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -696,37 +817,14 @@ function ToolDetailContent({ toolName }) {
               </svg>
               全部清除
             </button>
-            <div className="download-btn-wrapper" style={{ position: 'relative' }}>
-              <button className="btn-action btn-download" onClick={handleDownloadAll}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                全部下载
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '6px' }}>
-                   <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </button>
-              {showDownloadMenu && (
-                <div className="download-dropdown-menu">
-                  <button className="dropdown-item" onClick={handleZipDownload}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight: '8px'}}>
-                       <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                       <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                       <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                    </svg>
-                    打包下载 (ZIP)
-                  </button>
-                  <button className="dropdown-item" onClick={handleBatchDownload}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight: '8px'}}>
-                       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    下载到文件夹
-                  </button>
-                </div>
-              )}
-            </div>
+            <button className="btn-action btn-download" onClick={handleDownloadAll}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              全部下载
+            </button>
           </div>
         </div>
 
@@ -919,19 +1017,21 @@ function ToolDetailContent({ toolName }) {
                         <span className="value-label-center">{convertOptions.quality}%</span>
                       </div>
                       
-                      <div className="sub-option">
-                        <label>背景颜色</label>
-                        <div className="color-picker-wrapper">
-                          <input 
-                            type="color" 
-                            value={convertOptions.backgroundColor}
-                            onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
-                          />
-                          <div 
-                            className="color-preview" 
-                            style={{ backgroundColor: convertOptions.backgroundColor }}
-                          ></div>
-                        </div>
+                      <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
+                        <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                        <input 
+                          type="color" 
+                          value={convertOptions.backgroundColor}
+                          onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                          style={{ width: '60px', height: '32px', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}
+                        />
+                        <input 
+                          type="text" 
+                          value={convertOptions.backgroundColor}
+                          onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                          placeholder="#ffffff"
+                          style={{ flex: 1, fontFamily: 'monospace' }}
+                        />
                       </div>
                     </div>
                   </div>
@@ -1232,19 +1332,21 @@ function ToolDetailContent({ toolName }) {
                       </div>
                     </div>
 
-                    <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>背景颜色</label>
-                      <div className="color-picker-wrapper">
-                        <input 
-                          type="color" 
-                          value={convertOptions.backgroundColor}
-                          onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
-                        />
-                        <div 
-                          className="color-preview" 
-                          style={{ backgroundColor: convertOptions.backgroundColor }}
-                        ></div>
-                      </div>
+                    <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
+                      <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                      <input 
+                        type="color" 
+                        value={convertOptions.backgroundColor}
+                        onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                        style={{ width: '60px', height: '32px', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}
+                      />
+                      <input 
+                        type="text" 
+                        value={convertOptions.backgroundColor}
+                        onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                        placeholder="#ffffff"
+                        style={{ flex: 1, fontFamily: 'monospace' }}
+                      />
                     </div>
                   </>
                 )}
@@ -1291,19 +1393,21 @@ function ToolDetailContent({ toolName }) {
                       </div>
                     </div>
                     
-                    <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>背景颜色</label>
-                      <div className="color-picker-wrapper">
-                        <input 
-                          type="color" 
-                          value={convertOptions.backgroundColor}
-                          onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
-                        />
-                        <div 
-                          className="color-preview" 
-                          style={{ backgroundColor: convertOptions.backgroundColor }}
-                        ></div>
-                      </div>
+                    <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
+                      <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                      <input 
+                        type="color" 
+                        value={convertOptions.backgroundColor}
+                        onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                        style={{ width: '60px', height: '32px', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}
+                      />
+                      <input 
+                        type="text" 
+                        value={convertOptions.backgroundColor}
+                        onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                        placeholder="#ffffff"
+                        style={{ flex: 1, fontFamily: 'monospace' }}
+                      />
                     </div>
                   </div>
                 )}
@@ -1331,19 +1435,21 @@ function ToolDetailContent({ toolName }) {
               <div className="xml-specific-options" style={{ padding: '0 20px 20px' }}>
                 {target === 'PDF' && (
                   <>
-                    <div className="sub-option" style={{ marginTop: '10px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>背景颜色</label>
-                      <div className="color-picker-wrapper">
-                        <input 
-                          type="color" 
-                          value={convertOptions.backgroundColor}
-                          onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
-                        />
-                        <div 
-                          className="color-preview" 
-                          style={{ backgroundColor: convertOptions.backgroundColor }}
-                        ></div>
-                      </div>
+                    <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px', marginTop: '10px' }}>
+                      <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                      <input 
+                        type="color" 
+                        value={convertOptions.backgroundColor}
+                        onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                        style={{ width: '60px', height: '32px', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}
+                      />
+                      <input 
+                        type="text" 
+                        value={convertOptions.backgroundColor}
+                        onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                        placeholder="#ffffff"
+                        style={{ flex: 1, fontFamily: 'monospace' }}
+                      />
                     </div>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
                       <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>页面大小</label>
@@ -1404,19 +1510,21 @@ function ToolDetailContent({ toolName }) {
                         {convertOptions.quality}%
                       </div>
                     </div>
-                    <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>背景颜色</label>
-                      <div className="color-picker-wrapper">
-                        <input 
-                          type="color" 
-                          value={convertOptions.backgroundColor}
-                          onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
-                        />
-                        <div 
-                          className="color-preview" 
-                          style={{ backgroundColor: convertOptions.backgroundColor }}
-                        ></div>
-                      </div>
+                    <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
+                      <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                      <input 
+                        type="color" 
+                        value={convertOptions.backgroundColor}
+                        onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                        style={{ width: '60px', height: '32px', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}
+                      />
+                      <input 
+                        type="text" 
+                        value={convertOptions.backgroundColor}
+                        onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                        placeholder="#ffffff"
+                        style={{ flex: 1, fontFamily: 'monospace' }}
+                      />
                     </div>
                   </>
                 )}
@@ -1500,7 +1608,102 @@ function ToolDetailContent({ toolName }) {
               </div>
             ) : (
               <>
-                {!['TXT', 'EPUB'].includes(target) && (
+                {source === 'DOCX' && target === 'PDF' && (
+                  <div className="option-group-content static-options">
+                    <div className="sub-option">
+                      <label>页面范围</label>
+                      <input
+                        type="text"
+                        value={convertOptions.docxPdfPageRange}
+                        onChange={(e) => setConvertOptions({...convertOptions, docxPdfPageRange: e.target.value})}
+                        placeholder="例如: 1-5,8,10"
+                        style={{ width: '100%', fontFamily: 'monospace' }}
+                      />
+                    </div>
+                    <div className="sub-option" style={{ marginTop: '16px' }}>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>页面大小</label>
+                      <div className="custom-select-wrapper" style={{ position: 'relative' }}>
+                        <select
+                          value={convertOptions.pageSize}
+                          onChange={(e) => setConvertOptions({...convertOptions, pageSize: e.target.value})}
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            border: '1.5px solid #e2e8f0',
+                            borderRadius: '10px',
+                            fontSize: '14px',
+                            color: '#1e293b',
+                            backgroundColor: '#fff',
+                            appearance: 'none',
+                            cursor: 'pointer',
+                            outline: 'none'
+                          }}
+                        >
+                          <option>A4</option>
+                          <option>Letter</option>
+                          <option>A3</option>
+                          <option>Legal</option>
+                        </select>
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 16 16"
+                          fill="#94a3b8"
+                          style={{
+                            position: 'absolute',
+                            right: '12px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            pointerEvents: 'none'
+                          }}
+                        >
+                          <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="sub-option" style={{ marginTop: '16px' }}>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>方向</label>
+                      <div className="custom-select-wrapper" style={{ position: 'relative' }}>
+                        <select
+                          value={convertOptions.orientation}
+                          onChange={(e) => setConvertOptions({...convertOptions, orientation: e.target.value})}
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            border: '1.5px solid #e2e8f0',
+                            borderRadius: '10px',
+                            fontSize: '14px',
+                            color: '#1e293b',
+                            backgroundColor: '#fff',
+                            appearance: 'none',
+                            cursor: 'pointer',
+                            outline: 'none'
+                          }}
+                        >
+                          <option>纵向</option>
+                          <option>横向</option>
+                        </select>
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 16 16"
+                          fill="#94a3b8"
+                          style={{
+                            position: 'absolute',
+                            right: '12px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            pointerEvents: 'none'
+                          }}
+                        >
+                          <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!['TXT', 'EPUB'].includes(target) && ['PNG', 'JPG', 'JPEG', 'GIF', 'WEBP', 'SVG'].includes(target) && (
                   <div className="option-group-content static-options">
                     <div className="sub-option">
                       <label>质量 (1-100)</label>
@@ -1514,19 +1717,21 @@ function ToolDetailContent({ toolName }) {
                       <span className="value-label-center">{convertOptions.quality}%</span>
                     </div>
                     
-                    <div className="sub-option">
-                      <label>背景颜色</label>
-                      <div className="color-picker-wrapper">
-                        <input 
-                          type="color" 
-                          value={convertOptions.backgroundColor}
-                          onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
-                        />
-                        <div 
-                          className="color-preview" 
-                          style={{ backgroundColor: convertOptions.backgroundColor }}
-                        ></div>
-                      </div>
+                    <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
+                      <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                      <input 
+                        type="color" 
+                        value={convertOptions.backgroundColor}
+                        onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                        style={{ width: '60px', height: '32px', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}
+                      />
+                      <input 
+                        type="text" 
+                        value={convertOptions.backgroundColor}
+                        onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                        placeholder="#ffffff"
+                        style={{ flex: 1, fontFamily: 'monospace' }}
+                      />
                     </div>
                   </div>
                 )}
@@ -1554,72 +1759,71 @@ function ToolDetailContent({ toolName }) {
                     <div className="option-group-content">
                       {!['TXT', 'EPUB'].includes(target) && (
                         <>
-                          <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <label>文字</label>
+                          <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
+                            <label style={{ minWidth: 'auto', marginBottom: 0 }}>文字</label>
                             <input 
                               type="text" 
                               placeholder=""
                               value={watermarkOptions.text}
                               onChange={(e) => setWatermarkOptions({...watermarkOptions, text: e.target.value})}
+                              style={{ flex: 1 }}
                             />
                           </div>
                           
-                          <div className="sub-option">
-                            <label>字体</label>
-                            <select 
-                              value={watermarkOptions.font}
-                              onChange={(e) => setWatermarkOptions({...watermarkOptions, font: e.target.value})}
-                            >
-                              <option>Arial Bold</option>
-                              <option>宋体</option>
-                              <option>微软雅黑</option>
-                            </select>
-                          </div>
-                          
-                          <div className="sub-option">
-                            <label>颜色</label>
-                            <div className="color-picker-wrapper">
-                              <div 
-                                className="color-preview" 
-                                style={{ backgroundColor: watermarkOptions.color }}
-                              ></div>
-                            </div>
-                          </div>
-                          
-                          <div className="sub-option">
-                            <label>大小</label>
+                          <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
+                            <label style={{ minWidth: '60px', marginBottom: 0 }}>大小</label>
                             <input 
                               type="range" 
                               min="10" 
                               max="100" 
                               value={watermarkOptions.size}
                               onChange={(e) => setWatermarkOptions({...watermarkOptions, size: e.target.value})}
+                              style={{ flex: 1 }}
                             />
-                            <span className="value-label-center">{watermarkOptions.size}</span>
+                            <span className="value-label-center" style={{ minWidth: '40px', textAlign: 'right' }}>{watermarkOptions.size}</span>
                           </div>
                           
-                          <div className="sub-option">
-                            <label>不透明度</label>
+                          <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
+                            <label style={{ minWidth: '60px', marginBottom: 0 }}>不透明度</label>
                             <input 
                               type="range" 
                               min="0" 
                               max="100" 
                               value={watermarkOptions.opacity}
                               onChange={(e) => setWatermarkOptions({...watermarkOptions, opacity: e.target.value})}
+                              style={{ flex: 1 }}
                             />
-                            <span className="value-label-center">{watermarkOptions.opacity}%</span>
+                            <span className="value-label-center" style={{ minWidth: '40px', textAlign: 'right' }}>{watermarkOptions.opacity}%</span>
                           </div>
                           
-                          <div className="sub-option">
-                            <label>角度</label>
+                          <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
+                            <label style={{ minWidth: '60px', marginBottom: 0 }}>角度</label>
                             <input 
                               type="range" 
                               min="0" 
                               max="360" 
                               value={watermarkOptions.angle}
                               onChange={(e) => setWatermarkOptions({...watermarkOptions, angle: e.target.value})}
+                              style={{ flex: 1 }}
                             />
-                            <span className="value-label-center">{watermarkOptions.angle}°</span>
+                            <span className="value-label-center" style={{ minWidth: '40px', textAlign: 'right' }}>{watermarkOptions.angle}°</span>
+                          </div>
+                          
+                          <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
+                            <label style={{ minWidth: '60px', marginBottom: 0 }}>颜色</label>
+                            <input 
+                              type="color" 
+                              value={watermarkOptions.color}
+                              onChange={(e) => setWatermarkOptions({...watermarkOptions, color: e.target.value})}
+                              style={{ width: '60px', height: '32px', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              value={watermarkOptions.color}
+                              onChange={(e) => setWatermarkOptions({...watermarkOptions, color: e.target.value})}
+                              placeholder="#cccccc"
+                              style={{ flex: 1, fontFamily: 'monospace' }}
+                            />
                           </div>
                         </>
                       )}
@@ -1655,6 +1859,49 @@ function ToolDetailContent({ toolName }) {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {showDownloadModal && (
+        <div className="modal-overlay" onClick={() => setShowDownloadModal(false)}>
+          <div className="download-modal" onClick={e => e.stopPropagation()}>
+            <div className="download-modal-header">
+              <h3>全部下载</h3>
+              <button className="modal-close-btn" onClick={() => setShowDownloadModal(false)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            <div className="download-modal-content">
+              <button className="download-option-btn" onClick={handleZipDownload}>
+                <div className="download-option-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                  </svg>
+                </div>
+                <div className="download-option-text">
+                  <h4>打包下载 (ZIP)</h4>
+                  <p>将所有文件打包成一个 ZIP 文件下载</p>
+                </div>
+              </button>
+              
+              <button className="download-option-btn" onClick={handleBatchDownload}>
+                <div className="download-option-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                </div>
+                <div className="download-option-text">
+                  <h4>下载到文件夹</h4>
+                  <p>选择文件夹,将所有文件保存到该位置</p>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       )}

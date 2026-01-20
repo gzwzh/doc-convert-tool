@@ -98,10 +98,11 @@ class HtmlToPdfConverter(BaseConverter):
             
             # Screenshot using html_str instead of html_file to use modified content
             # Note: html2image screenshot saves to self.output_path / save_as
+            # 为了尽量避免内容被截断,将高度调大一些
             self.hti.screenshot(
                 html_str=html_content, 
                 save_as=output_filename,
-                size=(1280, 5000) 
+                size=(1280, 12000)
             )
             
             full_temp_img_path = os.path.join(output_dir, output_filename)
@@ -138,9 +139,12 @@ class HtmlToPdfConverter(BaseConverter):
             self.validate_input(input_path)
             self.update_progress(input_path, 5)
             
-            # 策略1: 浏览器截图转换（效果最好，支持复杂样式）
-            if self.convert_via_image(input_path, output_path):
-                 return {
+            skip_image = False
+            if options.get('page_size') or options.get('orientation') or options.get('page_range') or options.get('watermark_text'):
+                skip_image = True
+            
+            if not skip_image and self.convert_via_image(input_path, output_path):
+                return {
                     'success': True,
                     'output_path': output_path,
                     'size': self.get_output_size(output_path),
@@ -159,12 +163,7 @@ class HtmlToPdfConverter(BaseConverter):
             self.update_progress(input_path, 40)
 
             # --- Font Handling (Inject CSS for Registered Font) ---
-            # We use the font we registered in __init__
             font_css = """
-                @font-face {
-                    font-family: 'Microsoft YaHei';
-                    src: url('C:/Windows/Fonts/msyh.ttc');
-                }
                 body, div, p, span, h1, h2, h3, h4, h5, h6, table, li {
                     font-family: 'Microsoft YaHei', 'SimSun', sans-serif;
                 }
@@ -225,24 +224,116 @@ class HtmlToPdfConverter(BaseConverter):
                     soup.append(new_style)
 
             self.update_progress(input_path, 70)
-
-            # 4. Page Settings (Inject @page CSS)
-            page_size = options.get('page_size', 'A4')
-            orientation = options.get('orientation', 'portrait') # '纵向' -> portrait, '横向' -> landscape?
             
-            # Map Chinese to English if necessary (Frontend passes '纵向'/'横向')
+            # 4. Page Settings (Inject @page CSS)
+            raw_page_size = options.get('page_size') or 'A4'
+            raw_orientation = options.get('orientation') or 'portrait'
+
+            # Normalize orientation (Frontend may pass '纵向'/'横向')
+            orientation = str(raw_orientation).strip()
             if orientation == '纵向':
                 orientation = 'portrait'
             elif orientation == '横向':
                 orientation = 'landscape'
-            
-            page_css = f"@page {{ size: {page_size} {orientation}; margin: 1cm; }}"
+            orientation = orientation.lower()
+
+            # Map page size name to concrete width/height (in cm)
+            size_key = str(raw_page_size).strip().upper()
+            size_map = {
+                'A4': (21.0, 29.7),
+                'A3': (29.7, 42.0),
+                'LETTER': (21.59, 27.94),
+                'LEGAL': (21.59, 35.56),
+            }
+            width_cm, height_cm = size_map.get(size_key, size_map['A4'])
+
+            # Apply orientation by swapping width/height for landscape
+            if orientation == 'landscape':
+                width_cm, height_cm = height_cm, width_cm
+
+            page_css = f"@page {{ size: {width_cm}cm {height_cm}cm; margin: 1cm; }}"
             page_style = soup.new_tag('style')
             page_style.string = page_css
             if soup.head:
                 soup.head.append(page_style)
             else:
                 soup.append(page_style)
+
+            watermark_text = options.get('watermark_text')
+            if watermark_text:
+                watermark_size = options.get('watermark_size', 40)
+                watermark_color = options.get('watermark_color', '#cccccc')
+                watermark_opacity = options.get('watermark_opacity', 30)
+                watermark_angle = options.get('watermark_angle', 45)
+                watermark_position = options.get('watermark_position', 'center')
+
+                try:
+                    watermark_size = int(watermark_size)
+                except Exception:
+                    watermark_size = 40
+
+                try:
+                    watermark_opacity = int(watermark_opacity)
+                except Exception:
+                    watermark_opacity = 30
+
+                if watermark_opacity < 0:
+                    watermark_opacity = 0
+                if watermark_opacity > 100:
+                    watermark_opacity = 100
+
+                try:
+                    watermark_angle = float(watermark_angle)
+                except Exception:
+                    watermark_angle = 45.0
+
+                position_map = {
+                    'top-left': ('20%', '20%'),
+                    'top': ('15%', '50%'),
+                    'top-right': ('20%', '80%'),
+                    'left': ('50%', '15%'),
+                    'center': ('50%', '50%'),
+                    'right': ('50%', '85%'),
+                    'bottom-left': ('80%', '20%'),
+                    'bottom': ('85%', '50%'),
+                    'bottom-right': ('80%', '80%'),
+                }
+                top, left = position_map.get(watermark_position, ('50%', '50%'))
+
+                opacity_value = watermark_opacity / 100.0
+
+                watermark_css = f"""
+.pdf-watermark {{
+    position: fixed;
+    top: {top};
+    left: {left};
+    transform: translate(-50%, -50%) rotate({watermark_angle}deg);
+    color: {watermark_color};
+    font-size: {watermark_size}px;
+    opacity: {opacity_value};
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 9999;
+}}
+"""
+
+                wm_style = soup.new_tag('style')
+                wm_style.string = watermark_css
+                if soup.head:
+                    soup.head.append(wm_style)
+                else:
+                    soup.append(wm_style)
+
+                if not soup.body:
+                    body_tag = soup.new_tag('body')
+                    soup.append(body_tag)
+                    body = body_tag
+                else:
+                    body = soup.body
+
+                watermark_div = soup.new_tag('div', attrs={'class': 'pdf-watermark'})
+                watermark_div.string = watermark_text
+                body.append(watermark_div)
 
             # Convert back to string
             final_html = str(soup)
@@ -258,6 +349,10 @@ class HtmlToPdfConverter(BaseConverter):
             
             if pisa_status.err:
                 raise Exception(f"PDF generation error: {pisa_status.err}")
+
+            page_range = options.get('page_range')
+            if page_range:
+                self._apply_page_range(output_path, page_range)
             
             self.update_progress(input_path, 100)
             
@@ -271,3 +366,55 @@ class HtmlToPdfConverter(BaseConverter):
         except Exception as e:
             self.cleanup_on_error(output_path)
             raise Exception(f"HTML to PDF conversion failed: {str(e)}")
+
+    def _apply_page_range(self, output_path: str, page_range: str) -> None:
+        try:
+            import fitz
+        except ImportError as e:
+            raise Exception(f"PyMuPDF not installed: {e}")
+
+        if not page_range:
+            return
+
+        doc = fitz.open(output_path)
+        total_pages = len(doc)
+
+        pages = []
+        parts = [p.strip() for p in page_range.split(',') if p.strip()]
+        for part in parts:
+            if '-' in part:
+                segment = part.split('-', 1)
+                try:
+                    start = int(segment[0])
+                    end = int(segment[1])
+                except Exception:
+                    continue
+                if start < 1:
+                    start = 1
+                if end > total_pages:
+                    end = total_pages
+                if start <= end:
+                    pages.extend(range(start - 1, end))
+            else:
+                try:
+                    num = int(part)
+                except Exception:
+                    continue
+                if 1 <= num <= total_pages:
+                    pages.append(num - 1)
+
+        pages = sorted(set(pages))
+        if not pages:
+            doc.close()
+            return
+
+        new_doc = fitz.open()
+        for pno in pages:
+            new_doc.insert_pdf(doc, from_page=pno, to_page=pno)
+
+        temp_path = output_path + ".tmp"
+        new_doc.save(temp_path)
+        new_doc.close()
+        doc.close()
+
+        os.replace(temp_path, output_path)

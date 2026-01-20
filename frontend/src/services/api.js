@@ -87,6 +87,14 @@ export const convertGeneral = async (file, targetFormat, options = {}) => {
     if (options.quality !== undefined) formData.append('quality', options.quality);
     if (options.backgroundColor) formData.append('background_color', options.backgroundColor);
     
+    // Watermark options
+    if (options.watermark_text) formData.append('watermark_text', options.watermark_text);
+    if (options.watermark_opacity !== undefined) formData.append('watermark_opacity', options.watermark_opacity);
+    if (options.watermark_size !== undefined) formData.append('watermark_size', options.watermark_size);
+    if (options.watermark_color) formData.append('watermark_color', options.watermark_color);
+    if (options.watermark_angle !== undefined) formData.append('watermark_angle', options.watermark_angle);
+    if (options.watermark_position) formData.append('watermark_position', options.watermark_position);
+    
     // CSV options
     if (options.csvDelimiter) formData.append('csv_delimiter', options.csvDelimiter);
     

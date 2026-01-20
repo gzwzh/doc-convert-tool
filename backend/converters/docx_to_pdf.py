@@ -46,10 +46,56 @@ class DocxToPdfConverter(BaseConverter):
             return False
     
     def _convert_with_word(self, input_path: str, output_path: str) -> Dict[str, Any]:
-        """使用 Microsoft Word 转换"""
-        from docx2pdf import convert
-        convert(input_path, output_path)
-        return {'method': 'microsoft_word'}
+        """使用 Microsoft Word 转换 (优化版)"""
+        import win32com.client
+        import pythoncom
+        
+        # 初始化 COM
+        pythoncom.CoInitialize()
+        
+        word = None
+        doc = None
+        
+        try:
+            # 转换为绝对路径
+            input_path = os.path.abspath(input_path)
+            output_path = os.path.abspath(output_path)
+            
+            # 启动 Word
+            word = win32com.client.Dispatch("Word.Application")
+            word.Visible = False
+            word.DisplayAlerts = 0  # 不显示警告
+            
+            # 打开文档
+            doc = word.Documents.Open(input_path, ReadOnly=True)
+            
+            # 保存为 PDF
+            # wdFormatPDF = 17
+            doc.SaveAs(output_path, FileFormat=17)
+            
+            return {'method': 'microsoft_word'}
+            
+        except Exception as e:
+            raise e
+        finally:
+            # 清理资源
+            try:
+                if doc:
+                    doc.Close(SaveChanges=False)
+            except:
+                pass
+            
+            try:
+                if word:
+                    word.Quit()
+            except:
+                pass
+            
+            # 清理 COM
+            try:
+                pythoncom.CoUninitialize()
+            except:
+                pass
     
     def _convert_with_libreoffice(self, input_path: str, output_path: str) -> Dict[str, Any]:
         """使用 LibreOffice 转换"""
@@ -71,29 +117,114 @@ class DocxToPdfConverter(BaseConverter):
         return {'method': 'libreoffice'}
     
     def _convert_with_html(self, input_path: str, output_path: str, **options) -> Dict[str, Any]:
-        """使用 HTML 中转方式转换（兜底方案）"""
+        """使用 HTML 中转方式转换（兜底方案 - 增强版，支持图片）"""
+        import base64
+        from docx.oxml.text.paragraph import CT_P
+        from docx.oxml.table import CT_Tbl
+        from docx.table import _Cell, Table
+        from docx.text.paragraph import Paragraph
+        
         doc = Document(input_path)
+        base_dir = os.path.dirname(output_path) or os.getcwd()
+        base_name = os.path.splitext(os.path.basename(output_path))[0]
+        
         lines = [
             '<!DOCTYPE html>',
             '<html>',
             '<head>',
             '<meta charset="utf-8">',
             '<style>',
-            'html, body { background-color: #ffffff; color: #000000; margin: 20px; font-family: "Microsoft YaHei", "SimSun", sans-serif; }',
-            'p { margin: 0.5em 0; line-height: 1.6; }',
+            'html, body { background-color: #ffffff; color: #000000; margin: 40px; font-family: "Microsoft YaHei", "SimSun", sans-serif; font-size: 14px; }',
+            'p { margin: 0.8em 0; line-height: 1.8; }',
+            'img { max-width: 100%; height: auto; margin: 1em 0; display: block; }',
+            'table { border-collapse: collapse; width: 100%; margin: 1em 0; }',
+            'td, th { border: 1px solid #ddd; padding: 8px; text-align: left; }',
+            'th { background-color: #f2f2f2; font-weight: bold; }',
+            'h1 { font-size: 24px; font-weight: bold; margin: 1em 0 0.5em 0; }',
+            'h2 { font-size: 20px; font-weight: bold; margin: 1em 0 0.5em 0; }',
+            'h3 { font-size: 18px; font-weight: bold; margin: 1em 0 0.5em 0; }',
+            'strong, b { font-weight: bold; }',
+            'em, i { font-style: italic; }',
+            'ul, ol { margin: 0.5em 0; padding-left: 2em; }',
+            'li { margin: 0.3em 0; }',
             '</style>',
             '</head>',
             '<body>',
         ]
         
-        for para in doc.paragraphs:
-            text = html.escape(para.text or '')
-            lines.append(f"<p>{text}</p>")
+        # 提取所有图片关系
+        image_counter = 0
+        
+        # 遍历文档的所有元素（段落和表格）
+        for element in doc.element.body:
+            if isinstance(element, CT_P):
+                para = Paragraph(element, doc)
+                
+                # 检查段落中是否有图片
+                has_image = False
+                for run in para.runs:
+                    # 检查 run 中的图片
+                    for drawing in run.element.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}drawing'):
+                        has_image = True
+                        # 提取图片
+                        for blip in drawing.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip'):
+                            embed = blip.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed')
+                            if embed:
+                                try:
+                                    image_part = doc.part.related_parts[embed]
+                                    image_bytes = image_part.blob
+                                    # 转换为 base64
+                                    image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+                                    # 获取图片类型
+                                    content_type = image_part.content_type
+                                    lines.append(f'<img src="data:{content_type};base64,{image_base64}" alt="Image {image_counter}" />')
+                                    image_counter += 1
+                                except Exception as e:
+                                    print(f"[DocxToPdf] 提取图片失败: {e}")
+                
+                # 如果没有图片，处理文本
+                if not has_image:
+                    text = html.escape(para.text or '')
+                    if not text.strip():
+                        continue
+                    
+                    # 检测标题样式
+                    style_name = para.style.name.lower() if para.style else ''
+                    if 'heading 1' in style_name or 'title' in style_name:
+                        lines.append(f"<h1>{text}</h1>")
+                    elif 'heading 2' in style_name:
+                        lines.append(f"<h2>{text}</h2>")
+                    elif 'heading 3' in style_name:
+                        lines.append(f"<h3>{text}</h3>")
+                    else:
+                        # 检测文本格式
+                        formatted_text = text
+                        if para.runs:
+                            formatted_parts = []
+                            for run in para.runs:
+                                run_text = html.escape(run.text or '')
+                                if run.bold:
+                                    run_text = f"<strong>{run_text}</strong>"
+                                if run.italic:
+                                    run_text = f"<em>{run_text}</em>"
+                                formatted_parts.append(run_text)
+                            formatted_text = ''.join(formatted_parts)
+                        lines.append(f"<p>{formatted_text}</p>")
+            
+            elif isinstance(element, CT_Tbl):
+                table = Table(element, doc)
+                lines.append('<table>')
+                for i, row in enumerate(table.rows):
+                    lines.append('<tr>')
+                    for cell in row.cells:
+                        cell_text = html.escape(cell.text or '')
+                        tag = 'th' if i == 0 else 'td'
+                        lines.append(f"<{tag}>{cell_text}</{tag}>")
+                    lines.append('</tr>')
+                lines.append('</table>')
         
         lines.append('</body></html>')
         
-        base_dir = os.path.dirname(output_path) or os.getcwd()
-        base_name = os.path.splitext(os.path.basename(output_path))[0]
         temp_html_path = os.path.join(base_dir, base_name + "_temp.html")
         
         try:
@@ -104,7 +235,7 @@ class DocxToPdfConverter(BaseConverter):
             if os.path.exists(temp_html_path):
                 os.remove(temp_html_path)
         
-        return {'method': 'html_fallback'}
+        return {'method': 'html_fallback', 'images_extracted': image_counter}
 
     def convert(self, input_path: str, output_path: str, **options) -> Dict[str, Any]:
         """将 DOCX 转换为 PDF（多策略降级）"""
@@ -112,16 +243,38 @@ class DocxToPdfConverter(BaseConverter):
             self.validate_input(input_path)
             self.update_progress(input_path, 5)
             
+            print(f"[DocxToPdf] 开始转换: {input_path} -> {output_path}")
+            
             result = {}
             errors = []
+
+            has_page_options = any(
+                key in options and options.get(key)
+                for key in ['page_size', 'orientation', 'page_range', 'watermark_text']
+            )
+
+            if has_page_options:
+                print("[DocxToPdf] 检测到页面或水印选项，使用 HTML 兜底方案以应用这些设置")
+                self.update_progress(input_path, 60)
+                result = self._convert_with_html(input_path, output_path, **options)
+                self.update_progress(input_path, 100)
+                print(f"[DocxToPdf] ✓ HTML 兜底方案转换成功 (带页面/水印设置)")
+                result['method'] = 'html_fallback'
+                return {
+                    'success': True,
+                    'output_path': output_path,
+                    'size': self.get_output_size(output_path),
+                    **result
+                }
             
-            # 策略1: Microsoft Word（效果最好，保留格式）
             if self._has_word():
                 try:
+                    print("[DocxToPdf] 尝试使用 Microsoft Word 转换...")
                     self.update_progress(input_path, 10)
                     result = self._convert_with_word(input_path, output_path)
                     self.update_progress(input_path, 100)
                     
+                    print(f"[DocxToPdf] ✓ Word 转换成功")
                     return {
                         'success': True,
                         'output_path': output_path,
@@ -130,16 +283,22 @@ class DocxToPdfConverter(BaseConverter):
                     }
                 except Exception as e1:
                     errors.append(f"Word: {str(e1)}")
-                    print(f"[Word conversion failed] {e1}")
+                    print(f"[DocxToPdf] ✗ Word 转换失败: {e1}")
+                    import traceback
+                    traceback.print_exc()
                     self.update_progress(input_path, 20)
+            else:
+                print("[DocxToPdf] Microsoft Word 不可用")
             
             # 策略2: LibreOffice（开源方案）
             if self.soffice_path:
                 try:
+                    print("[DocxToPdf] 尝试使用 LibreOffice 转换...")
                     self.update_progress(input_path, 30)
                     result = self._convert_with_libreoffice(input_path, output_path)
                     self.update_progress(input_path, 100)
                     
+                    print(f"[DocxToPdf] ✓ LibreOffice 转换成功")
                     return {
                         'success': True,
                         'output_path': output_path,
@@ -148,15 +307,21 @@ class DocxToPdfConverter(BaseConverter):
                     }
                 except Exception as e2:
                     errors.append(f"LibreOffice: {str(e2)}")
-                    print(f"[LibreOffice conversion failed] {e2}")
+                    print(f"[DocxToPdf] ✗ LibreOffice 转换失败: {e2}")
+                    import traceback
+                    traceback.print_exc()
                     self.update_progress(input_path, 50)
+            else:
+                print("[DocxToPdf] LibreOffice 不可用")
             
             # 策略3: HTML 中转（兜底方案，基础文本提取）
             try:
+                print("[DocxToPdf] 尝试使用 HTML 兜底方案...")
                 self.update_progress(input_path, 60)
                 result = self._convert_with_html(input_path, output_path, **options)
                 self.update_progress(input_path, 100)
                 
+                print(f"[DocxToPdf] ✓ HTML 兜底方案转换成功 (可能丢失部分格式)")
                 result['warning'] = 'Used HTML fallback (basic text extraction only)'
                 return {
                     'success': True,
@@ -166,10 +331,13 @@ class DocxToPdfConverter(BaseConverter):
                 }
             except Exception as e3:
                 errors.append(f"HTML: {str(e3)}")
-                print(f"[HTML conversion failed] {e3}")
+                print(f"[DocxToPdf] ✗ HTML 兜底方案失败: {e3}")
+                import traceback
+                traceback.print_exc()
             
             # 所有策略都失败
             error_msg = "All conversion methods failed: " + "; ".join(errors)
+            print(f"[DocxToPdf] ✗ 所有转换方法都失败")
             raise Exception(error_msg)
             
         except Exception as e:

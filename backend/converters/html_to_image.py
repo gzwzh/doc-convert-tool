@@ -91,8 +91,11 @@ class HtmlToImageConverter(BaseConverter):
                 html_content = f'<html><head>{bg_css}</head><body>{html_content}</body></html>'
             
             # 配置参数
-            width = options.get('width', 1280)
-            height = options.get('height', 800)
+            # 宽度可以由前端指定,默认为 1280
+            width = int(options.get('width') or 1280)
+            # 为了尽量包含更多内容,默认高度设大一些(例如 4000 像素)
+            # 如需更长页面,前端可以传入 height 覆盖
+            height = int(options.get('height') or 4000)
             quality = options.get('quality', 90)
             
             self.update_progress(input_path, 25)
