@@ -1,13 +1,15 @@
-﻿﻿import { useState, useRef } from 'react';
+﻿﻿﻿﻿﻿﻿﻿import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { motion } from 'framer-motion';
 import { convertJSON, convertXML, convertGeneral } from '../services/api';
+import { categories } from '../data';
 
 const API_BASE_URL = 'http://127.0.0.1:8002';
 
-function ToolDetailContent({ toolName }) {
+function ToolDetailContent({ toolName, onBack }) {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
@@ -62,6 +64,7 @@ function ToolDetailContent({ toolName }) {
 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewContent, setPreviewContent] = useState('');
+  const [isToolDropdownOpen, setIsToolDropdownOpen] = useState(false);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -77,9 +80,27 @@ function ToolDetailContent({ toolName }) {
 
   const { source, target } = parseToolName(toolName);
 
+  const formatToolDisplayName = (name) => {
+    const parts = name.split(' To ');
+    if (parts.length === 2) {
+      return `${parts[0]}转为${parts[1]}`;
+    }
+    return name;
+  };
+
+  const majorCategory = categories['主要功能'] || [];
+  let currentSection = null;
+  for (const section of majorCategory) {
+    if (section.tools && section.tools.some((t) => t.name === toolName)) {
+      currentSection = section;
+      break;
+    }
+  }
+  const siblingTools = currentSection ? currentSection.tools.map((t) => t.name) : [];
+
   // Determine if the right sidebar should be shown
   let showSidebar = source === 'JSON' 
-    ? ['CSV', 'JPG', 'YAML', 'XML'].includes(target)
+    ? ['CSV', 'JPG', 'YAML'].includes(target)
     : source === 'TXT'
     ? ['SPEECH', 'PDF', 'JPG', 'PNG'].includes(target)
     : source === 'XML'
@@ -90,12 +111,33 @@ function ToolDetailContent({ toolName }) {
     showSidebar = false;
   }
 
+  const handleToolBreadcrumbToggle = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!siblingTools.length) return;
+    setIsToolDropdownOpen((prev) => !prev);
+  };
+
+  const handleBreadcrumbToolSelect = (name) => {
+    setIsToolDropdownOpen(false);
+    if (name === toolName) return;
+    const parts = name.split(' To ');
+    if (parts.length !== 2) return;
+    const src = parts[0].toLowerCase();
+    const tgt = parts[1].toLowerCase();
+    navigate(`/tool/${src}/${tgt}`);
+  };
+
   const handleHomeClick = () => {
-    console.log('Navigating to home page');
-    // Use setTimeout to ensure the click event is properly handled
-    setTimeout(() => {
-      navigate('/');
-    }, 0);
+    if (onBack) {
+      onBack();
+    } else {
+      console.log('Navigating to home page');
+      // Use setTimeout to ensure the click event is properly handled
+      setTimeout(() => {
+        navigate('/');
+      }, 0);
+    }
   };
 
   const handleConverterClick = () => {
@@ -679,8 +721,20 @@ function ToolDetailContent({ toolName }) {
   };
 
   return (
-    <div className="content-wrapper">
+    <motion.div
+      className="feature-container"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      style={{ padding: '24px', height: '100%', overflowY: 'auto' }}
+    >
       <div className="detail-header">
+        <button className="back-button-circle" onClick={handleHomeClick} style={{ marginRight: '24px' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5"/>
+            <path d="M12 19l-7-7 7-7"/>
+          </svg>
+        </button>
         <div className="header-left">
           <div className="breadcrumbs">
             <span className="breadcrumb-item" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleHomeClick(); }}>
@@ -693,7 +747,41 @@ function ToolDetailContent({ toolName }) {
             <span className="breadcrumb-separator">/</span>
             <span className="breadcrumb-item" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConverterClick(); }}>{source} 工具</span>
             <span className="breadcrumb-separator">/</span>
-            <span className="breadcrumb-item active">{source}转为{target}</span>
+            <span
+              className={`breadcrumb-item active breadcrumb-item-dropdown ${isToolDropdownOpen ? 'open' : ''}`}
+              onClick={handleToolBreadcrumbToggle}
+            >
+              <span>{source}转为{target}</span>
+              {siblingTools.length > 0 && (
+                <svg
+                  className="breadcrumb-caret"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              )}
+              {isToolDropdownOpen && siblingTools.length > 0 && (
+                <div className="breadcrumb-dropdown-menu">
+                  {siblingTools.map((name) => (
+                    <button
+                      key={name}
+                      className={`breadcrumb-dropdown-item ${name === toolName ? 'active' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBreadcrumbToolSelect(name);
+                      }}
+                    >
+                      {formatToolDisplayName(name)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </span>
           </div>
           
           <div className="detail-title-section">
@@ -750,10 +838,29 @@ function ToolDetailContent({ toolName }) {
             </div>
           </div>
 
-          {files.length > 0 && (
-            <div className="file-list-container">
+      <div className="file-list-container">
+        <div className="file-list-header">
+          <h3 className="file-list-title">文件列表 ({files.length})</h3>
+          <div className="file-list-actions">
+            <button className="file-action-btn" onClick={() => {}} disabled={files.length === 0}>全选</button>
+            <button className="file-action-btn" onClick={() => {}} disabled={files.length === 0}>取消全选</button>
+            <button 
+              className="file-action-btn file-action-btn-primary"
+              onClick={handleConvert}
+              disabled={isConverting || files.length === 0}
+            >
+              {isConverting ? '转换中...' : '全部转换'}
+            </button>
+            <button className="file-action-btn" onClick={handleClearAll} disabled={files.length === 0}>清空全部</button>
+            <button className="file-action-btn" disabled={files.length === 0} onClick={handleDownloadAll}>全部下载</button>
+          </div>
+        </div>
+        
+        <div className="file-list-body">
+          {files.length > 0 ? (
+            <div className="file-list-content">
               {files.map((fileObj) => (
-                <div key={fileObj.id} className="file-list-item">
+                <div key={fileObj.id} className="file-item-card">
                   <div className="file-item-left">
                     <div className={`file-icon-circle ${isConverting ? 'loading' : ''}`}>
                       <span className="file-type-text">{source}</span>
@@ -797,60 +904,33 @@ function ToolDetailContent({ toolName }) {
                 </div>
               ))}
             </div>
+          ) : (
+            <div className="file-list-empty">
+              <p>暂无文件，请在上方添加</p>
+            </div>
           )}
-
-          <div className="action-buttons">
-            <button 
-              className="btn-action btn-convert" 
-              onClick={handleConvert}
-              disabled={isConverting || files.length === 0}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-              </svg>
-              {isConverting ? '正在转换...' : '全部转换'}
-            </button>
-            
-            <button className="btn-action btn-clear" onClick={handleClearAll}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-              全部清除
-            </button>
-            <button className="btn-action btn-download" onClick={handleDownloadAll}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              全部下载
-            </button>
-          </div>
         </div>
+      </div>
+    </div>
 
         {showSidebar && (
-          <div className="convert-options">
-            <div className="options-header">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00a3ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="6" cy="6" r="1" />
-                <circle cx="12" cy="12" r="1" />
-                <circle cx="18" cy="18" r="1" />
-                <line x1="3" y1="6" x2="21" y2="6" opacity="0.2" />
-                <line x1="3" y1="12" x2="21" y2="12" opacity="0.2" />
-                <line x1="3" y1="18" x2="21" y2="18" opacity="0.2" />
-                <circle cx="8" cy="6" r="2.5" fill="#00a3ff" stroke="none" />
-                <circle cx="16" cy="12" r="2.5" fill="#00a3ff" stroke="none" />
-                <circle cx="10" cy="18" r="2.5" fill="#00a3ff" stroke="none" />
+          <div className="config-box-wrapper">
+            <div className="config-header">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
               </svg>
-              <h3 className="options-title">转换选项</h3>
+              <span>转换选项</span>
             </div>
-          <div className="options-list">
-            {source === 'HTML' ? (
-              <div className="html-specific-options">
-                {/* Preview Options */}
-                <div className={`option-group ${expandedSections.preview ? 'expanded' : ''}`}>
-                  <div className="option-group-header" onClick={() => toggleSection('preview')}>
-                    <span>预览选项</span>
+            
+            <div className="options-list">
+              {source === 'HTML' ? (
+                <div className="html-specific-options">
+                  {/* Preview Options */}
+                  <div className={`option-group ${expandedSections.preview ? 'expanded' : ''}`}>
+                    <div className="option-group-header" onClick={() => toggleSection('preview')}>
+                      <span>预览选项</span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: expandedSections.preview ? 'rotate(180deg)' : 'rotate(0)' }}>
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
@@ -886,16 +966,28 @@ function ToolDetailContent({ toolName }) {
                   </div>
                   {expandedSections.css && (
                     <div className="option-group-content">
-                      <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <label>CSS 处理</label>
-                        <select 
-                          value={htmlOptions.cssHandling}
-                          onChange={(e) => setHtmlOptions({...htmlOptions, cssHandling: e.target.value})}
-                        >
-                          <option>保留所有 CSS</option>
-                          <option>内联 CSS</option>
-                          <option>移除 CSS</option>
-                        </select>
+                      <div className="sub-option">
+                        <label className="custom-theme-label">CSS 处理</label>
+                        <div className="custom-select-wrapper" style={{ position: 'relative' }}>
+                          <select 
+                            value={htmlOptions.cssHandling}
+                            onChange={(e) => setHtmlOptions({...htmlOptions, cssHandling: e.target.value})}
+                            className="custom-theme-select"
+                          >
+                            <option>保留所有 CSS</option>
+                            <option>内联 CSS</option>
+                            <option>移除 CSS</option>
+                          </select>
+                          <svg 
+                            width="12" 
+                            height="12" 
+                            viewBox="0 0 16 16" 
+                            fill="currentColor" 
+                            className="custom-select-icon"
+                          >
+                            <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+                          </svg>
+                        </div>
                       </div>
                       <label className="checkbox-label">
                         <input 
@@ -974,25 +1066,49 @@ function ToolDetailContent({ toolName }) {
                     </div>
                     <div className="option-group-content">
                       <div className="sub-option">
-                        <label>页面大小</label>
-                        <select 
-                          value={htmlOptions.pageSize}
-                          onChange={(e) => setHtmlOptions({...htmlOptions, pageSize: e.target.value})}
-                        >
-                          <option>A4</option>
-                          <option>Letter</option>
-                          <option>A3</option>
-                        </select>
+                        <label className="custom-theme-label">页面大小</label>
+                        <div className="custom-select-wrapper" style={{ position: 'relative' }}>
+                          <select 
+                            value={htmlOptions.pageSize}
+                            onChange={(e) => setHtmlOptions({...htmlOptions, pageSize: e.target.value})}
+                            className="custom-theme-select"
+                          >
+                            <option>A4</option>
+                            <option>Letter</option>
+                            <option>A3</option>
+                          </select>
+                          <svg 
+                            width="12" 
+                            height="12" 
+                            viewBox="0 0 16 16" 
+                            fill="currentColor" 
+                            className="custom-select-icon"
+                          >
+                            <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+                          </svg>
+                        </div>
                       </div>
                       <div className="sub-option">
-                        <label>方向</label>
-                        <select 
-                          value={htmlOptions.orientation}
-                          onChange={(e) => setHtmlOptions({...htmlOptions, orientation: e.target.value})}
-                        >
-                          <option>纵向</option>
-                          <option>横向</option>
-                        </select>
+                        <label className="custom-theme-label">方向</label>
+                        <div className="custom-select-wrapper" style={{ position: 'relative' }}>
+                          <select 
+                            value={htmlOptions.orientation}
+                            onChange={(e) => setHtmlOptions({...htmlOptions, orientation: e.target.value})}
+                            className="custom-theme-select"
+                          >
+                            <option>纵向</option>
+                            <option>横向</option>
+                          </select>
+                          <svg 
+                            width="12" 
+                            height="12" 
+                            viewBox="0 0 16 16" 
+                            fill="currentColor" 
+                            className="custom-select-icon"
+                          >
+                            <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+                          </svg>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1069,15 +1185,27 @@ function ToolDetailContent({ toolName }) {
                   {isPdfPagesExpanded && (
                     <div className="option-group-content">
                       <div className="sub-option">
-                        <label>选择页面</label>
-                        <select 
-                          value={convertOptions.pdfPageSelection}
-                          onChange={(e) => setConvertOptions({...convertOptions, pdfPageSelection: e.target.value})}
-                        >
-                          <option>所有页面</option>
-                          <option>页面范围</option>
-                          <option>特定页面</option>
-                        </select>
+                        <label className="custom-theme-label">选择页面</label>
+                        <div className="custom-select-wrapper" style={{ position: 'relative' }}>
+                          <select 
+                            value={convertOptions.pdfPageSelection}
+                            onChange={(e) => setConvertOptions({...convertOptions, pdfPageSelection: e.target.value})}
+                            className="custom-theme-select"
+                          >
+                            <option>所有页面</option>
+                            <option>页面范围</option>
+                            <option>特定页面</option>
+                          </select>
+                          <svg 
+                            width="12" 
+                            height="12" 
+                            viewBox="0 0 16 16" 
+                            fill="currentColor" 
+                            className="custom-select-icon"
+                          >
+                            <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+                          </svg>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1185,23 +1313,12 @@ function ToolDetailContent({ toolName }) {
                     </div>
 
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>语音语言</label>
+                      <label className="custom-theme-label">语音语言</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
                           value={convertOptions.speechLanguage}
                           onChange={(e) => setConvertOptions({...convertOptions, speechLanguage: e.target.value})}
-                          style={{ 
-                            width: '100%',
-                            padding: '12px',
-                            border: '1.5px solid #e2e8f0',
-                            borderRadius: '10px',
-                            fontSize: '14px',
-                            color: '#1e293b',
-                            backgroundColor: '#fff',
-                            appearance: 'none',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
+                          className="custom-theme-select"
                         >
                           <option>英语</option>
                           <option>中文 (普通话)</option>
@@ -1213,14 +1330,8 @@ function ToolDetailContent({ toolName }) {
                           width="12" 
                           height="12" 
                           viewBox="0 0 16 16" 
-                          fill="#94a3b8" 
-                          style={{ 
-                            position: 'absolute', 
-                            right: '12px', 
-                            top: '50%', 
-                            transform: 'translateY(-50%)',
-                            pointerEvents: 'none'
-                          }}
+                          fill="currentColor" 
+                          className="custom-select-icon"
                         >
                           <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
                         </svg>
@@ -1232,23 +1343,12 @@ function ToolDetailContent({ toolName }) {
                 {target === 'PDF' && (
                   <>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>页面大小</label>
+                      <label className="custom-theme-label">页面大小</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
                           value={convertOptions.pageSize}
                           onChange={(e) => setConvertOptions({...convertOptions, pageSize: e.target.value})}
-                          style={{ 
-                            width: '100%',
-                            padding: '12px',
-                            border: '1.5px solid #e2e8f0',
-                            borderRadius: '10px',
-                            fontSize: '14px',
-                            color: '#1e293b',
-                            backgroundColor: '#fff',
-                            appearance: 'none',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
+                          className="custom-theme-select"
                         >
                           <option>A4</option>
                           <option>Letter</option>
@@ -1259,14 +1359,8 @@ function ToolDetailContent({ toolName }) {
                           width="12" 
                           height="12" 
                           viewBox="0 0 16 16" 
-                          fill="#94a3b8" 
-                          style={{ 
-                            position: 'absolute', 
-                            right: '12px', 
-                            top: '50%', 
-                            transform: 'translateY(-50%)',
-                            pointerEvents: 'none'
-                          }}
+                          fill="currentColor" 
+                          className="custom-select-icon"
                         >
                           <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
                         </svg>
@@ -1274,23 +1368,12 @@ function ToolDetailContent({ toolName }) {
                     </div>
 
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>方向</label>
+                      <label className="custom-theme-label">方向</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
                           value={convertOptions.orientation}
                           onChange={(e) => setConvertOptions({...convertOptions, orientation: e.target.value})}
-                          style={{ 
-                            width: '100%',
-                            padding: '12px',
-                            border: '1.5px solid #e2e8f0',
-                            borderRadius: '10px',
-                            fontSize: '14px',
-                            color: '#1e293b',
-                            backgroundColor: '#fff',
-                            appearance: 'none',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
+                          className="custom-theme-select"
                         >
                           <option>纵向</option>
                           <option>横向</option>
@@ -1299,14 +1382,8 @@ function ToolDetailContent({ toolName }) {
                           width="12" 
                           height="12" 
                           viewBox="0 0 16 16" 
-                          fill="#94a3b8" 
-                          style={{ 
-                            position: 'absolute', 
-                            right: '12px', 
-                            top: '50%', 
-                            transform: 'translateY(-50%)',
-                            pointerEvents: 'none'
-                          }}
+                          fill="currentColor" 
+                          className="custom-select-icon"
                         >
                           <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
                         </svg>
@@ -1355,24 +1432,29 @@ function ToolDetailContent({ toolName }) {
               <div className="json-specific-options">
                 {target === 'CSV' && (
                   <div className="option-group-content" style={{ padding: '20px' }}>
-                    <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <label>CSV 分隔符</label>
-                      <select 
-                        value={convertOptions.csvDelimiter}
-                        onChange={(e) => setConvertOptions({...convertOptions, csvDelimiter: e.target.value})}
-                        style={{ 
-                          appearance: 'none',
-                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E")`,
-                          backgroundRepeat: 'no-repeat',
-                          backgroundPosition: 'right 12px center',
-                          paddingRight: '32px'
-                        }}
-                      >
-                        <option>逗号 (,)</option>
-                        <option>分号 (;)</option>
-                        <option>制表符 (Tab)</option>
-                        <option>竖线 (|)</option>
-                      </select>
+                    <div className="sub-option">
+                      <label className="custom-theme-label">CSV 分隔符</label>
+                      <div className="custom-select-wrapper" style={{ position: 'relative' }}>
+                        <select 
+                          value={convertOptions.csvDelimiter}
+                          onChange={(e) => setConvertOptions({...convertOptions, csvDelimiter: e.target.value})}
+                          className="custom-theme-select"
+                        >
+                          <option>逗号 (,)</option>
+                          <option>分号 (;)</option>
+                          <option>制表符 (Tab)</option>
+                          <option>竖线 (|)</option>
+                        </select>
+                        <svg 
+                          width="12" 
+                          height="12" 
+                          viewBox="0 0 16 16" 
+                          fill="currentColor" 
+                          className="custom-select-icon"
+                        >
+                          <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1430,6 +1512,7 @@ function ToolDetailContent({ toolName }) {
                     </div>
                   </div>
                 )}
+
               </div>
             ) : source === 'XML' ? (
               <div className="xml-specific-options" style={{ padding: '0 20px 20px' }}>
@@ -1452,23 +1535,12 @@ function ToolDetailContent({ toolName }) {
                       />
                     </div>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>页面大小</label>
+                      <label className="custom-theme-label">页面大小</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
                           value={convertOptions.pageSize}
                           onChange={(e) => setConvertOptions({...convertOptions, pageSize: e.target.value})}
-                          style={{ 
-                            width: '100%',
-                            padding: '12px',
-                            border: '1.5px solid #e2e8f0',
-                            borderRadius: '10px',
-                            fontSize: '14px',
-                            color: '#1e293b',
-                            backgroundColor: '#fff',
-                            appearance: 'none',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
+                          className="custom-theme-select"
                         >
                           <option>A4</option>
                           <option>Letter</option>
@@ -1479,14 +1551,8 @@ function ToolDetailContent({ toolName }) {
                           width="12" 
                           height="12" 
                           viewBox="0 0 16 16" 
-                          fill="#94a3b8" 
-                          style={{ 
-                            position: 'absolute', 
-                            right: '12px', 
-                            top: '50%', 
-                            transform: 'translateY(-50%)',
-                            pointerEvents: 'none'
-                          }}
+                          fill="currentColor" 
+                          className="custom-select-icon"
                         >
                           <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
                         </svg>
@@ -1530,23 +1596,12 @@ function ToolDetailContent({ toolName }) {
                 )}
                 {target === 'CSV' && (
                   <div className="sub-option" style={{ marginTop: '20px' }}>
-                    <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>CSV 分隔符</label>
+                    <label className="custom-theme-label">CSV 分隔符</label>
                     <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                       <select 
                         value={convertOptions.csvDelimiter}
                         onChange={(e) => setConvertOptions({...convertOptions, csvDelimiter: e.target.value})}
-                        style={{ 
-                          width: '100%',
-                          padding: '12px',
-                          border: '1.5px solid #00a3ff',
-                          borderRadius: '10px',
-                          fontSize: '14px',
-                          color: '#1e293b',
-                          backgroundColor: '#fff',
-                          appearance: 'none',
-                          cursor: 'pointer',
-                          outline: 'none'
-                        }}
+                        className="custom-theme-select"
                       >
                         <option>逗号 (,)</option>
                         <option>分号 (;)</option>
@@ -1557,14 +1612,8 @@ function ToolDetailContent({ toolName }) {
                         width="12" 
                         height="12" 
                         viewBox="0 0 16 16" 
-                        fill="#94a3b8" 
-                        style={{ 
-                          position: 'absolute', 
-                          right: '12px', 
-                          top: '50%', 
-                          transform: 'translateY(-50%)',
-                          pointerEvents: 'none'
-                        }}
+                        fill="currentColor" 
+                        className="custom-select-icon"
                       >
                         <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
                       </svg>
@@ -1621,23 +1670,12 @@ function ToolDetailContent({ toolName }) {
                       />
                     </div>
                     <div className="sub-option" style={{ marginTop: '16px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>页面大小</label>
+                      <label className="custom-theme-label">页面大小</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select
                           value={convertOptions.pageSize}
                           onChange={(e) => setConvertOptions({...convertOptions, pageSize: e.target.value})}
-                          style={{
-                            width: '100%',
-                            padding: '12px',
-                            border: '1.5px solid #e2e8f0',
-                            borderRadius: '10px',
-                            fontSize: '14px',
-                            color: '#1e293b',
-                            backgroundColor: '#fff',
-                            appearance: 'none',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
+                          className="custom-theme-select"
                         >
                           <option>A4</option>
                           <option>Letter</option>
@@ -1648,37 +1686,20 @@ function ToolDetailContent({ toolName }) {
                           width="12"
                           height="12"
                           viewBox="0 0 16 16"
-                          fill="#94a3b8"
-                          style={{
-                            position: 'absolute',
-                            right: '12px',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            pointerEvents: 'none'
-                          }}
+                          fill="currentColor"
+                          className="custom-select-icon"
                         >
                           <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
                         </svg>
                       </div>
                     </div>
                     <div className="sub-option" style={{ marginTop: '16px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '8px', display: 'block', fontSize: '15px' }}>方向</label>
+                      <label className="custom-theme-label">方向</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select
                           value={convertOptions.orientation}
                           onChange={(e) => setConvertOptions({...convertOptions, orientation: e.target.value})}
-                          style={{
-                            width: '100%',
-                            padding: '12px',
-                            border: '1.5px solid #e2e8f0',
-                            borderRadius: '10px',
-                            fontSize: '14px',
-                            color: '#1e293b',
-                            backgroundColor: '#fff',
-                            appearance: 'none',
-                            cursor: 'pointer',
-                            outline: 'none'
-                          }}
+                          className="custom-theme-select"
                         >
                           <option>纵向</option>
                           <option>横向</option>
@@ -1687,14 +1708,8 @@ function ToolDetailContent({ toolName }) {
                           width="12"
                           height="12"
                           viewBox="0 0 16 16"
-                          fill="#94a3b8"
-                          style={{
-                            position: 'absolute',
-                            right: '12px',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            pointerEvents: 'none'
-                          }}
+                          fill="currentColor"
+                          className="custom-select-icon"
                         >
                           <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
                         </svg>
@@ -1930,7 +1945,7 @@ function ToolDetailContent({ toolName }) {
         </div>
       )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 

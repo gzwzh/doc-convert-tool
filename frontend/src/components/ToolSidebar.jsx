@@ -1,10 +1,105 @@
+import { useState, useEffect, useRef } from 'react';
+import AdBanner from './AdBanner';
 import '../App.css';
 
-function ToolSidebar({ sections, activeSection, onSectionClick }) {
+function ToolSidebar({ sections, activeSection, onSectionClick, onToolClick }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    const results = [];
+    if (sections) {
+      sections.forEach(section => {
+        if (section.tools) {
+          section.tools.forEach(tool => {
+            if (tool.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+              results.push({ ...tool, section });
+            }
+          });
+        }
+      });
+    }
+    setSearchResults(results);
+    setShowDropdown(true);
+  }, [searchTerm, sections]);
+
+  const handleSearchResultClick = (result) => {
+    // 1. Clear search
+    setSearchTerm('');
+    setShowDropdown(false);
+    
+    // 2. Notify parent
+    if (onToolClick) {
+      onToolClick(result, result.section);
+    }
+  };
+
   if (!sections) return null;
 
   return (
     <aside className="sidebar">
+      {/* Search Box */}
+      <div className="sidebar-search-wrapper" ref={searchRef}>
+        <div className="sidebar-search-input-container">
+          <svg className="sidebar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            type="text"
+            className="sidebar-search-input"
+            placeholder="搜索功能..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onFocus={() => {
+              if (searchTerm.trim()) setShowDropdown(true);
+            }}
+          />
+        </div>
+
+        {/* Dropdown Results */}
+        {showDropdown && (
+          <div className="search-results-dropdown">
+            {searchResults.length > 0 ? (
+              searchResults.map((result, index) => (
+                <div 
+                  key={`${result.section.name}-${result.name}-${index}`}
+                  className="search-result-item"
+                  onClick={() => handleSearchResultClick(result)}
+                >
+                  <span className="search-result-name">
+                    {result.name.split(new RegExp(`(${searchTerm})`, 'gi')).map((part, i) => 
+                      part.toLowerCase() === searchTerm.toLowerCase() ? <span key={i} className="search-result-match">{part}</span> : part
+                    )}
+                  </span>
+                  <span className="search-result-category">{result.section.name}</span>
+                </div>
+              ))
+            ) : (
+              <div className="search-no-results">未找到相关功能</div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="sidebar-list">
         {sections.map((section) => (
           <div
@@ -12,16 +107,23 @@ function ToolSidebar({ sections, activeSection, onSectionClick }) {
             className={`sidebar-item ${activeSection?.name === section.name ? 'active' : ''}`}
             onClick={() => onSectionClick(section)}
           >
-            {section.name}
+            <span>{section.name}</span>
+            {activeSection?.name === section.name && (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--primary-color)' }}>
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            )}
           </div>
         ))}
       </div>
       
-      <div className="sidebar-footer">
-        <div className="ad-banner-sidebar">
-          广告 (2:3)
-        </div>
-      </div>
+      <AdBanner
+          positions={['adv_position_04', 'adv_position_05']}
+          ratio={2/3}
+          placeholderLabel="AD (2:3)"
+          interval={5000}
+          width="100%"
+        />
     </aside>
   );
 }

@@ -1,48 +1,358 @@
+import {
+  FilePdfOutlined,
+  FileWordOutlined,
+  FileExcelOutlined,
+  FileImageOutlined,
+  CodeOutlined,
+  FileTextOutlined,
+  ToolOutlined
+} from '@ant-design/icons';
+
 export const categories = {
-  "文档类": [
+  '主要功能': [
     {
-      name: "DOCX 转换器",
+      name: 'DOCX 转换器',
+      icon: FileWordOutlined,
+      description: 'DOCX 转换器',
       tools: [
-        "DOCX To PDF", "DOCX To PNG", "DOCX To JPG", "DOCX To TXT", "DOCX To EPUB"
+        {
+          name: 'DOCX To PDF',
+          icon: FilePdfOutlined,
+          description: 'Convert DOCX to PDF'
+        },
+        {
+          name: 'DOCX To PNG',
+          icon: FileWordOutlined,
+          description: 'Convert DOCX to PNG'
+        },
+        {
+          name: 'DOCX To JPG',
+          icon: FileWordOutlined,
+          description: 'Convert DOCX to JPG'
+        },
+        {
+          name: 'DOCX To TXT',
+          icon: FileWordOutlined,
+          description: 'Convert DOCX to TXT'
+        },
+        {
+          name: 'DOCX To EPUB',
+          icon: FileWordOutlined,
+          description: 'Convert DOCX to EPUB'
+        },
       ]
     },
     {
-      name: "HTML 转换器",
+      name: 'HTML 转换器',
+      icon: CodeOutlined,
+      description: 'HTML 转换器',
       tools: [
-        "HTML To PDF", "HTML To JPG", "HTML To SVG", "HTML To GIF", "HTML To WORD",
-        "HTML To PNG", "HTML To TEXT", "HTML To MARKDOWN", "HTML To JSON"
+        {
+          name: 'HTML To PDF',
+          icon: FilePdfOutlined,
+          description: 'Convert HTML to PDF'
+        },
+        {
+          name: 'HTML To JPG',
+          icon: FileImageOutlined,
+          description: 'Convert HTML to JPG'
+        },
+        {
+          name: 'HTML To SVG',
+          icon: FileImageOutlined,
+          description: 'Convert HTML to SVG'
+        },
+        {
+          name: 'HTML To GIF',
+          icon: FileImageOutlined,
+          description: 'Convert HTML to GIF'
+        },
+        {
+          name: 'HTML To WORD',
+          icon: FileWordOutlined,
+          description: 'Convert HTML to WORD'
+        },
+        {
+          name: 'HTML To PNG',
+          icon: FileImageOutlined,
+          description: 'Convert HTML to PNG'
+        },
+        {
+          name: 'HTML To TEXT',
+          icon: CodeOutlined,
+          description: 'Convert HTML to TEXT'
+        },
+        {
+          name: 'HTML To MARKDOWN',
+          icon: CodeOutlined,
+          description: 'Convert HTML to MARKDOWN'
+        },
+        {
+          name: 'HTML To JSON',
+          icon: CodeOutlined,
+          description: 'Convert HTML to JSON'
+        },
       ]
     },
     {
-      name: "JSON 转换器",
+      name: 'JSON 转换器',
+      icon: CodeOutlined,
+      description: 'JSON 转换器',
       tools: [
-        "JSON To PDF", "JSON To PNG", "JSON To JPG", "JSON To SVG", "JSON To CSV",
-        "JSON To HTML", "JSON To YAML", "JSON To XML", "JSON To BASE64"
+        {
+          name: 'JSON To PDF',
+          icon: FilePdfOutlined,
+          description: 'Convert JSON to PDF'
+        },
+        {
+          name: 'JSON To PNG',
+          icon: FileImageOutlined,
+          description: 'Convert JSON to PNG'
+        },
+        {
+          name: 'JSON To JPG',
+          icon: FileImageOutlined,
+          description: 'Convert JSON to JPG'
+        },
+        {
+          name: 'JSON To SVG',
+          icon: FileImageOutlined,
+          description: 'Convert JSON to SVG'
+        },
+        {
+          name: 'JSON To CSV',
+          icon: FileExcelOutlined,
+          description: 'Convert JSON to CSV'
+        },
+        {
+          name: 'JSON To HTML',
+          icon: CodeOutlined,
+          description: 'Convert JSON to HTML'
+        },
+        {
+          name: 'JSON To YAML',
+          icon: CodeOutlined,
+          description: 'Convert JSON to YAML'
+        },
+        {
+          name: 'JSON To XML',
+          icon: CodeOutlined,
+          description: 'Convert JSON to XML'
+        },
+        {
+          name: 'JSON To BASE64',
+          icon: CodeOutlined,
+          description: 'Convert JSON to BASE64'
+        },
       ]
     },
     {
-      name: "PDF 转换器",
+      name: 'PDF 转换器',
+      icon: FilePdfOutlined,
+      description: 'PDF 转换器',
       tools: [
-        "PDF To DOC", "PDF To PNG", "PDF To DOCX", "PDF To JPG", "PDF To SVG",
-        "PDF To JSON", "PDF To EPUB", "PDF To TXT", "PDF To BASE64",
-        "PDF To TIFF", "PDF To BMP", "PDF To MD", "PDF To HTML", "PDF To PPT",
-        "PDF To GIF", "PDF To PSD", "PDF To RTF", "PDF To WEBP"
+        {
+          name: 'PDF To DOC',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to DOC'
+        },
+        {
+          name: 'PDF To PNG',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to PNG'
+        },
+        {
+          name: 'PDF To DOCX',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to DOCX'
+        },
+        {
+          name: 'PDF To JPG',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to JPG'
+        },
+        {
+          name: 'PDF To SVG',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to SVG'
+        },
+        {
+          name: 'PDF To JSON',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to JSON'
+        },
+        {
+          name: 'PDF To EPUB',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to EPUB'
+        },
+        {
+          name: 'PDF To TXT',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to TXT'
+        },
+        {
+          name: 'PDF To BASE64',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to BASE64'
+        },
+        {
+          name: 'PDF To TIFF',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to TIFF'
+        },
+        {
+          name: 'PDF To BMP',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to BMP'
+        },
+        {
+          name: 'PDF To MD',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to MD'
+        },
+        {
+          name: 'PDF To HTML',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to HTML'
+        },
+        {
+          name: 'PDF To PPT',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to PPT'
+        },
+        {
+          name: 'PDF To GIF',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to GIF'
+        },
+        {
+          name: 'PDF To PSD',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to PSD'
+        },
+        {
+          name: 'PDF To RTF',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to RTF'
+        },
+        {
+          name: 'PDF To WEBP',
+          icon: FilePdfOutlined,
+          description: 'Convert PDF to WEBP'
+        },
       ]
     },
     {
-      name: "TXT 转换器",
+      name: 'TXT 转换器',
+      icon: FileTextOutlined,
+      description: 'TXT 转换器',
       tools: [
-        "TXT To PDF", "TXT To SPEECH", "TXT To JPG", "TXT To PNG", "TXT To ASCII",
-        "TXT To BINARY", "TXT To CSV", "TXT To HEX", "TXT To HTML"
+        {
+          name: 'TXT To PDF',
+          icon: FilePdfOutlined,
+          description: 'Convert TXT to PDF'
+        },
+        {
+          name: 'TXT To SPEECH',
+          icon: FileTextOutlined,
+          description: 'Convert TXT to SPEECH'
+        },
+        {
+          name: 'TXT To JPG',
+          icon: FileImageOutlined,
+          description: 'Convert TXT to JPG'
+        },
+        {
+          name: 'TXT To PNG',
+          icon: FileImageOutlined,
+          description: 'Convert TXT to PNG'
+        },
+        {
+          name: 'TXT To ASCII',
+          icon: FileTextOutlined,
+          description: 'Convert TXT to ASCII'
+        },
+        {
+          name: 'TXT To BINARY',
+          icon: FileTextOutlined,
+          description: 'Convert TXT to BINARY'
+        },
+        {
+          name: 'TXT To CSV',
+          icon: FileExcelOutlined,
+          description: 'Convert TXT to CSV'
+        },
+        {
+          name: 'TXT To HEX',
+          icon: FileTextOutlined,
+          description: 'Convert TXT to HEX'
+        },
+        {
+          name: 'TXT To HTML',
+          icon: CodeOutlined,
+          description: 'Convert TXT to HTML'
+        },
       ]
     },
     {
-      name: "XML 转换器",
+      name: 'XML 转换器',
+      icon: CodeOutlined,
+      description: 'XML 转换器',
       tools: [
-        "XML To JSON", "XML To YAML", "XML To CSV", "XML To HTML",
-        "XML To TEXT", "XML To PDF", "XML To XLSX", "XML To PNG",
-        "XML To JPG", "XML To SVG"
+        {
+          name: 'XML To JSON',
+          icon: CodeOutlined,
+          description: 'Convert XML to JSON'
+        },
+        {
+          name: 'XML To YAML',
+          icon: CodeOutlined,
+          description: 'Convert XML to YAML'
+        },
+        {
+          name: 'XML To CSV',
+          icon: FileExcelOutlined,
+          description: 'Convert XML to CSV'
+        },
+        {
+          name: 'XML To HTML',
+          icon: CodeOutlined,
+          description: 'Convert XML to HTML'
+        },
+        {
+          name: 'XML To TEXT',
+          icon: CodeOutlined,
+          description: 'Convert XML to TEXT'
+        },
+        {
+          name: 'XML To PDF',
+          icon: FilePdfOutlined,
+          description: 'Convert XML to PDF'
+        },
+        {
+          name: 'XML To XLSX',
+          icon: FileExcelOutlined,
+          description: 'Convert XML to XLSX'
+        },
+        {
+          name: 'XML To PNG',
+          icon: FileImageOutlined,
+          description: 'Convert XML to PNG'
+        },
+        {
+          name: 'XML To JPG',
+          icon: FileImageOutlined,
+          description: 'Convert XML to JPG'
+        },
+        {
+          name: 'XML To SVG',
+          icon: FileImageOutlined,
+          description: 'Convert XML to SVG'
+        },
       ]
-    }
+    },
   ]
 };
+
+export default categories;
