@@ -49,6 +49,7 @@ function ToolDetailContent({ toolName, onBack }) {
   const [isConverting, setIsConverting] = useState(false);
   const [conversionResults, setConversionResults] = useState({}); // Map of file index to result
   const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloadingFileId, setDownloadingFileId] = useState(null); // 记录要下载的文件ID
   const [isWatermarkExpanded, setIsWatermarkExpanded] = useState(false);
   const [isPdfPagesExpanded, setIsPdfPagesExpanded] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -373,12 +374,32 @@ function ToolDetailContent({ toolName, onBack }) {
       toast.error('没有可下载的文件');
       return;
     }
+    setDownloadingFileId(null); // 清空单个文件ID，表示下载全部
+    setShowDownloadModal(true);
+  };
+
+  const handleSingleFileDownload = (e, fileId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDownloadingFileId(fileId); // 设置要下载的文件ID
     setShowDownloadModal(true);
   };
 
   const handleBatchDownload = async () => {
-    const downloadableFiles = Object.values(conversionResults)
-      .filter(res => res && !res.error && res.download_url && res.download_url !== '#' && !res.download_url.startsWith('#'));
+    // 如果是单个文件下载
+    let downloadableFiles;
+    if (downloadingFileId) {
+      const result = conversionResults[downloadingFileId];
+      if (result && !result.error && result.download_url) {
+        downloadableFiles = [result];
+      } else {
+        downloadableFiles = [];
+      }
+    } else {
+      // 下载全部文件
+      downloadableFiles = Object.values(conversionResults)
+        .filter(res => res && !res.error && res.download_url && res.download_url !== '#' && !res.download_url.startsWith('#'));
+    }
       
     if (downloadableFiles.length === 0) return;
     
@@ -511,8 +532,20 @@ function ToolDetailContent({ toolName, onBack }) {
   };
 
   const handleZipDownload = async () => {
-    const downloadableFiles = Object.values(conversionResults)
-      .filter(res => res && !res.error && res.download_url && res.download_url !== '#' && !res.download_url.startsWith('#'));
+    // 如果是单个文件下载
+    let downloadableFiles;
+    if (downloadingFileId) {
+      const result = conversionResults[downloadingFileId];
+      if (result && !result.error && result.download_url) {
+        downloadableFiles = [result];
+      } else {
+        downloadableFiles = [];
+      }
+    } else {
+      // 下载全部文件
+      downloadableFiles = Object.values(conversionResults)
+        .filter(res => res && !res.error && res.download_url && res.download_url !== '#' && !res.download_url.startsWith('#'));
+    }
       
     if (downloadableFiles.length === 0) return;
 
@@ -2057,21 +2090,19 @@ function ToolDetailContent({ toolName, onBack }) {
 
                   <div className="file-item-right">
                     {conversionResults[fileObj.id] && !conversionResults[fileObj.id].error && (
-                      <a 
-                        href={`${API_BASE_URL}${conversionResults[fileObj.id].download_url}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={(e) => handleSingleFileDownload(e, fileObj.id)}
                         className="status-btn finish"
-                        title="下载"
+                        title="下载文件"
                       >
-                        Finish
-                      </a>
+                        下载
+                      </button>
                     )}
                     {conversionResults[fileObj.id] && conversionResults[fileObj.id].error && (
-                      <span className="status-btn error">Error</span>
+                      <span className="status-btn error">错误</span>
                     )}
                     {!conversionResults[fileObj.id] && isConverting && (
-                      <span className="status-btn converting">Converting...</span>
+                      <span className="status-btn converting">转换中...</span>
                     )}
                     <button 
                       onClick={() => handleRemoveFile(fileObj.id)}

@@ -1,0 +1,26 @@
+.app-footer {
+  width: 100%;
+  padding: 20px 0;
+  background: var(--card-bg);
+  border-top: 1px solid var(--border-color);
+  margin-top: auto;
+}
+
+.footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.footer-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.footer-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}

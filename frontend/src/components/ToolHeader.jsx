@@ -43,19 +43,31 @@ function ToolHeader() {
   };
 
   // 窗口控制逻辑
-  // eslint-disable-next-line no-undef
-  const electron = window.require ? window.require('electron') : null;
-  const handleMin = () => electron?.ipcRenderer.send('window-min');
-  const handleMax = () => electron?.ipcRenderer.send('window-max');
-  const handleClose = () => electron?.ipcRenderer.send('window-close');
+  const handleMin = () => {
+    if (window.electronAPI) {
+      window.electronAPI.minimizeWindow();
+    }
+  };
+
+  const handleMax = () => {
+    if (window.electronAPI) {
+      window.electronAPI.maximizeWindow();
+    }
+  };
+
+  const handleClose = () => {
+    if (window.electronAPI) {
+      window.electronAPI.closeWindow();
+    }
+  };
 
   return (
     <nav className="top-nav">
       <div className="nav-left">
         <div className="nav-logo-wrapper">
-          <img src="/icon.ico" alt="Logo" className="nav-app-icon" />
+          <img src="/app.ico" alt="Logo" className="nav-app-icon" />
           <div className="nav-app-info">
-            <div className="nav-app-title">全能图转</div>
+            <div className="nav-app-title">文档转换器</div>
             <div className="nav-app-subtitle">鲲穹AI旗下产品</div>
           </div>
         </div>
@@ -111,20 +123,20 @@ function ToolHeader() {
           )}
         </button>
 
-        {/* 窗口控制器 - 方案 C */}
+        {/* 窗口控制器 */}
         <div className="window-controls">
           <button className="window-control-btn" onClick={handleMin} title="最小化">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
           </button>
           <button className="window-control-btn" onClick={handleMax} title="最大化/还原">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="5" y="5" width="14" height="14" rx="2" ry="2"></rect>
             </svg>
           </button>
           <button className="window-control-btn close-btn" onClick={handleClose} title="关闭">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>

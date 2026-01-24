@@ -103,6 +103,13 @@
   backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-color);
   /* Very subtle separation */
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+  z-index: 20;
 }
 
 /* 主布局背景 */
@@ -117,7 +124,10 @@
 .nav-left,
 .nav-right,
 .window-controls,
+.window-control-btn,
 .user-btn-container,
+.user-btn,
+.user-profile-trigger,
 .ad-banner-top {
   -webkit-app-region: no-drag;
 }
@@ -223,18 +233,7 @@ body {
 
 
 /* Top Navigation - Software Toolbar Style */
-.top-nav {
-  height: var(--header-height);
-  background-color: var(--card-bg);
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  /* Separate left and right */
-  padding: 0 20px;
-  flex-shrink: 0;
-  z-index: 20;
-}
+/* 已在上方定义，此处删除重复 */
 
 .nav-left {
   display: flex;
