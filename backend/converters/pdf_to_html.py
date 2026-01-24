@@ -24,15 +24,24 @@ class PdfToHtmlConverter(BaseConverter):
             self.validate_input(input_path)
             self.update_progress(input_path, 5)
             
+            # 获取总页数（用于页面范围验证）
+            import fitz
+            with fitz.open(input_path) as doc:
+                total_pages = doc.page_count
+            
+            # 解析页面范围
+            raw_page_range = options.get('pdf_page_range') or options.get('page_range')
+            pages = self.parse_page_range(raw_page_range, total_pages=total_pages)
+            
             # 获取选项
             page_render = options.get('page_render', False)  # 是否使用页面渲染模式
             
             if page_render:
                 # 策略1: 页面渲染模式（高质量，保留所有内容）
-                result = self._convert_with_page_render(input_path, output_path)
+                result = self._convert_with_page_render(input_path, output_path, pages)
             else:
                 # 策略2: 文本提取模式（轻量级）
-                result = self._convert_with_text_extraction(input_path, output_path)
+                result = self._convert_with_text_extraction(input_path, output_path, pages)
             
             self.update_progress(input_path, 100)
             return result
@@ -41,12 +50,12 @@ class PdfToHtmlConverter(BaseConverter):
             self.cleanup_on_error(output_path)
             raise Exception(f"PDF to HTML conversion failed: {str(e)}")
     
-    def _convert_with_text_extraction(self, input_path: str, output_path: str) -> Dict[str, Any]:
+    def _convert_with_text_extraction(self, input_path: str, output_path: str, pages=None) -> Dict[str, Any]:
         """文本提取模式（原有方案，优化样式）"""
         self.update_progress(input_path, 20)
         
         # 提取文本
-        text = extract_text(input_path)
+        text = extract_text(input_path, page_numbers=pages)
         
         self.update_progress(input_path, 60)
         
@@ -97,7 +106,7 @@ class PdfToHtmlConverter(BaseConverter):
             'method': 'text_extraction'
         }
     
-    def _convert_with_page_render(self, input_path: str, output_path: str) -> Dict[str, Any]:
+    def _convert_with_page_render(self, input_path: str, output_path: str, pages=None) -> Dict[str, Any]:
         """页面渲染模式（将整页渲染为图片）"""
         try:
             import fitz
@@ -113,6 +122,12 @@ class PdfToHtmlConverter(BaseConverter):
             doc.close()
             raise Exception("PDF file is empty")
         
+        # 确定要处理的页面
+        if pages is None:
+            pages_to_process = range(total_pages)
+        else:
+            pages_to_process = pages
+            
         # 创建图片目录
         output_dir = os.path.dirname(output_path)
         base_name = os.path.splitext(os.path.basename(output_path))[0]
@@ -164,7 +179,13 @@ class PdfToHtmlConverter(BaseConverter):
         ]
         
         # 渲染每一页
-        for page_num in range(total_pages):
+        processed_count = 0
+        total_to_process = len(pages_to_process)
+        
+        for page_num in pages_to_process:
+            if page_num < 0 or page_num >= total_pages:
+                continue
+                
             page = doc[page_num]
             
             # 高质量渲染
@@ -187,9 +208,10 @@ class PdfToHtmlConverter(BaseConverter):
 </div>''')
             
             pix = None
+            processed_count += 1
             
             # 更新进度 (20% ~ 85%)
-            progress = 20 + int(((page_num + 1) / total_pages) * 65)
+            progress = 20 + int((processed_count / total_to_process) * 65)
             self.update_progress(input_path, progress)
         
         doc.close()

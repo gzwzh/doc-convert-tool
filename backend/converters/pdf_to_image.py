@@ -68,7 +68,14 @@ class PdfToImageConverter(BaseConverter):
                 doc.close()
                 raise Exception("PDF file is empty")
             
-            print(f"[PdfToImage] PDF 共 {page_count} 页")
+            # 获取页码范围 (支持多种参数名)
+            raw_page_range = options.get('pdf_page_range') or options.get('page_range')
+            pages = self.parse_page_range(raw_page_range, total_pages=page_count)
+            
+            # 确定要处理的页面列表
+            pages_to_process = pages if pages is not None else list(range(page_count))
+            
+            print(f"[PdfToImage] PDF 共 {page_count} 页, 将处理 {len(pages_to_process)} 页")
             self.update_progress(input_path, 15)
             
             base_name = os.path.splitext(os.path.basename(output_path))[0]
@@ -78,13 +85,18 @@ class PdfToImageConverter(BaseConverter):
             images = []
             
             # 转换每一页
-            for page_num in range(page_count):
+            for i, page_num in enumerate(pages_to_process):
+                # 确保页码有效
+                if page_num < 0 or page_num >= page_count:
+                    continue
+                    
                 page = doc.load_page(page_num)
                 
                 if background_color and background_color.lower() != '#ffffff':
                     pix = page.get_pixmap(matrix=mat, alpha=True)
                     img = Image.frombytes("RGBA", [pix.width, pix.height], pix.samples)
-                    print(f"[PdfToImage] 应用背景颜色: {background_color}")
+                    if i == 0: # 只打印一次
+                        print(f"[PdfToImage] 应用背景颜色: {background_color}")
                     img = self._apply_background_color(img, background_color)
                 else:
                     pix = page.get_pixmap(matrix=mat, alpha=False)
@@ -93,7 +105,7 @@ class PdfToImageConverter(BaseConverter):
                 images.append(img)
                 
                 # 更新进度 (15% ~ 60%)
-                progress = 15 + int(((page_num + 1) / page_count) * 45)
+                progress = 15 + int(((i + 1) / len(pages_to_process)) * 45)
                 self.update_progress(input_path, progress)
             
             doc.close()
@@ -110,9 +122,28 @@ class PdfToImageConverter(BaseConverter):
             self.update_progress(input_path, 75)
             
             # 处理输出
-            if merge and page_count > 1:
+            processed_count = len(images)
+            if processed_count == 1:
+                # 单页直接保存
+                print(f"[PdfToImage] 保存单页图片")
+                # 确保输出目录存在
+                output_dir = os.path.dirname(output_path)
+                if output_dir:
+                    os.makedirs(output_dir, exist_ok=True)
+                    
+                self._save_image(images[0], output_path, target_ext, quality)
+                self.update_progress(input_path, 100)
+                
+                return {
+                    'success': True,
+                    'output_path': output_path,
+                    'size': self.get_output_size(output_path),
+                    'page_count': 1,
+                    'merged': False
+                }
+            elif merge and processed_count > 1:
                 # 合并为长图
-                print(f"[PdfToImage] 合并 {page_count} 页为长图")
+                print(f"[PdfToImage] 合并 {processed_count} 页为长图")
                 final_output = self._merge_to_long_image(
                     images, output_path, target_ext, quality
                 )
@@ -122,14 +153,14 @@ class PdfToImageConverter(BaseConverter):
                     'success': True,
                     'output_path': final_output,
                     'size': self.get_output_size(final_output),
-                    'page_count': page_count,
+                    'page_count': processed_count,
                     'merged': True
                 }
             else:
                 # 保存为文件夹
-                print(f"[PdfToImage] 保存 {page_count} 页到文件夹")
+                print(f"[PdfToImage] 保存 {processed_count} 页到文件夹")
                 final_output = self._save_to_folder(
-                    images, output_path, target_ext, base_name, output_dir, quality
+                    images, output_path, target_ext, base_name, output_dir, quality, pages_to_process
                 )
                 self.update_progress(input_path, 100)
                 
@@ -137,7 +168,7 @@ class PdfToImageConverter(BaseConverter):
                     'success': True,
                     'output_path': final_output,
                     'size': self.get_output_size(final_output),
-                    'page_count': page_count,
+                    'page_count': processed_count,
                     'merged': False
                 }
             
@@ -304,7 +335,8 @@ class PdfToImageConverter(BaseConverter):
         return output_path
     
     def _save_to_folder(self, images: List[Image.Image], output_path: str, 
-                       target_ext: str, base_name: str, output_dir: str, quality: int) -> str:
+                       target_ext: str, base_name: str, output_dir: str, quality: int, 
+                       original_pages: List[int] = None) -> str:
         """保存到文件夹"""
         # 创建文件夹
         folder_path = os.path.join(output_dir, base_name)
@@ -312,15 +344,29 @@ class PdfToImageConverter(BaseConverter):
         
         # 保存每张图片
         for idx, img in enumerate(images):
-            filename = os.path.join(folder_path, f"{idx + 1}.{target_ext}")
+            if original_pages:
+                # 使用原始页码命名 (original_pages 是 0-based, 输出为 1-based)
+                page_num = original_pages[idx] + 1
+                filename = os.path.join(folder_path, f"{page_num}.{target_ext}")
+            else:
+                # 默认命名
+                filename = os.path.join(folder_path, f"{idx + 1}.{target_ext}")
+                
             self._save_image(img, filename, target_ext, quality)
         
         # 打包为 ZIP
         zip_path = output_path.replace(f'.{target_ext}', '.zip')
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
             for idx in range(len(images)):
-                filename = os.path.join(folder_path, f"{idx + 1}.{target_ext}")
-                zf.write(filename, f"{base_name}/{idx + 1}.{target_ext}")
+                if original_pages:
+                    page_num = original_pages[idx] + 1
+                    filename = os.path.join(folder_path, f"{page_num}.{target_ext}")
+                    arcname = f"{base_name}/{page_num}.{target_ext}"
+                else:
+                    filename = os.path.join(folder_path, f"{idx + 1}.{target_ext}")
+                    arcname = f"{base_name}/{idx + 1}.{target_ext}"
+                    
+                zf.write(filename, arcname)
         
         # 清理临时文件夹
         import shutil

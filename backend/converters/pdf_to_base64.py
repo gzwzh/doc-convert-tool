@@ -1,4 +1,5 @@
 import base64
+import fitz
 from .base import BaseConverter
 from typing import Dict, Any
 
@@ -15,8 +16,33 @@ class PdfToBase64Converter(BaseConverter):
         try:
             self.validate_input(input_path)
             
-            with open(input_path, 'rb') as f:
-                pdf_data = f.read()
+            # 检查是否需要页面提取
+            doc = fitz.open(input_path)
+            total_pages = doc.page_count
+            
+            raw_page_range = options.get('pdf_page_range') or options.get('page_range')
+            pages = self.parse_page_range(raw_page_range, total_pages=total_pages)
+            
+            if pages is None:
+                # 处理所有页面 - 直接读取文件
+                doc.close()
+                with open(input_path, 'rb') as f:
+                    pdf_data = f.read()
+            else:
+                # 提取特定页面
+                new_doc = fitz.open()
+                for page_num in pages:
+                    if page_num < 0 or page_num >= total_pages:
+                        continue
+                    new_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
+                
+                doc.close()
+                
+                if new_doc.page_count == 0:
+                     raise Exception("No valid pages selected")
+                     
+                pdf_data = new_doc.tobytes()
+                new_doc.close()
             
             base64_data = base64.b64encode(pdf_data).decode('utf-8')
             

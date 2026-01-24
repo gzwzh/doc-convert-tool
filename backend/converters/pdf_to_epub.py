@@ -24,9 +24,22 @@ class PdfToEpubConverter(BaseConverter):
             title = options.get('title', os.path.splitext(os.path.basename(input_path))[0])
             author = options.get('author', doc.metadata.get('author', 'Unknown'))
             
+            # 解析页面范围
+            raw_page_range = options.get('pdf_page_range') or options.get('page_range')
+            pages = self.parse_page_range(raw_page_range, total_pages=doc.page_count)
+            
+            # 确定要处理的页面
+            if pages is None:
+                pages_to_process = range(doc.page_count)
+            else:
+                pages_to_process = pages
+            
             # 提取每页内容
             chapters = []
-            for page_num in range(doc.page_count):
+            for page_num in pages_to_process:
+                if page_num < 0 or page_num >= doc.page_count:
+                    continue
+                    
                 page = doc.load_page(page_num)
                 text = page.get_text('text').strip()
                 if text:

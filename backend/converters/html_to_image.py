@@ -1,143 +1,62 @@
 import os
 import logging
-from html2image import Html2Image
-from PIL import Image
 from .base import BaseConverter
+from .html_to_pdf import HtmlToPdfConverter
+from .pdf_to_image import PdfToImageConverter
 from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
 
 class HtmlToImageConverter(BaseConverter):
-    """HTML 到图片转换器（优化版 - 参考 conversion_core）
+    """HTML 到图片转换器（基于 PDF 中转）
     
-    优化内容：
-    1. 添加进度回调
-    2. 支持多种浏览器（Edge/Chrome）
-    3. 可配置截图尺寸和质量
-    4. 自动处理透明背景
+    策略：
+    1. HTML -> PDF (使用浏览器无头打印，保证渲染效果)
+    2. PDF -> Image (使用 PyMuPDF 转图片，支持长图合并)
     """
     
     def __init__(self):
         super().__init__()
         self.supported_formats = ['png', 'jpg', 'jpeg']
-        self.hti = None
-        self._init_browser()
-    
-    def _init_browser(self):
-        """初始化浏览器"""
-        try:
-            # Windows: 优先使用 Edge
-            edge_paths = [
-                r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-                r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-            ]
-            
-            for edge_path in edge_paths:
-                if os.path.exists(edge_path):
-                    logger.info(f"Using Edge browser at {edge_path}")
-                    self.hti = Html2Image(browser_executable=edge_path)
-                    return
-            
-            # 尝试 Chrome
-            chrome_paths = [
-                r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-                r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-            ]
-            
-            for chrome_path in chrome_paths:
-                if os.path.exists(chrome_path):
-                    logger.info(f"Using Chrome browser at {chrome_path}")
-                    self.hti = Html2Image(browser_executable=chrome_path)
-                    return
-            
-            # 使用默认
-            logger.warning("No browser found, using default")
-            self.hti = Html2Image()
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize Html2Image: {e}")
-            self.hti = None
+        self.pdf_converter = HtmlToPdfConverter()
+        self.image_converter = PdfToImageConverter()
     
     def convert(self, input_path: str, output_path: str, **options) -> Dict[str, Any]:
-        """将 HTML 转换为图片（浏览器截图）"""
+        """将 HTML 转换为图片"""
+        temp_pdf = None
         try:
             self.validate_input(input_path)
             self.update_progress(input_path, 5)
             
-            if not self.hti:
-                raise Exception("浏览器初始化失败，无法进行截图转换")
-            
-            # 读取 HTML 内容
-            with open(input_path, 'r', encoding='utf-8', errors='ignore') as f:
-                html_content = f.read()
-            
-            self.update_progress(input_path, 15)
-            
-            # 注入白色背景防止黑屏
-            bg_css = '''<style>
-                html, body { 
-                    background-color: #ffffff !important; 
-                    margin: 0;
-                    padding: 20px;
-                }
-            </style>'''
-            
-            if '<head>' in html_content:
-                html_content = html_content.replace('<head>', f'<head>{bg_css}')
-            elif '<html>' in html_content:
-                html_content = html_content.replace('<html>', f'<html><head>{bg_css}</head>')
-            else:
-                html_content = f'<html><head>{bg_css}</head><body>{html_content}</body></html>'
-            
-            # 配置参数
-            # 宽度可以由前端指定,默认为 1280
-            width = int(options.get('width') or 1280)
-            # 为了尽量包含更多内容,默认高度设大一些(例如 4000 像素)
-            # 如需更长页面,前端可以传入 height 覆盖
-            height = int(options.get('height') or 4000)
-            quality = options.get('quality', 90)
-            
-            self.update_progress(input_path, 25)
-            
-            # 设置输出目录
+            # 1. HTML 转 PDF
+            # 使用与输出文件相同的目录，防止权限问题
             output_dir = os.path.dirname(output_path) or os.getcwd()
-            self.hti.output_path = output_dir
+            temp_pdf_name = f"temp_{os.path.basename(input_path)}.pdf"
+            temp_pdf = os.path.join(output_dir, temp_pdf_name)
             
-            # 先截图为 PNG
-            temp_filename = os.path.basename(output_path) + '_temp.png'
+            logger.info(f"Converting HTML to temporary PDF: {temp_pdf}")
             
-            self.update_progress(input_path, 30)
+            # 强制使用渲染模式（codeMode=False），因为转图片通常是为了看效果
+            pdf_options = options.copy()
+            pdf_options['code_mode'] = False
             
-            self.hti.screenshot(
-                html_str=html_content,
-                save_as=temp_filename,
-                size=(width, height)
-            )
+            # 调用 PDF 转换器
+            pdf_result = self.pdf_converter.convert(input_path, temp_pdf, **pdf_options)
             
-            temp_path = os.path.join(output_dir, temp_filename)
+            if not pdf_result.get('success'):
+                raise Exception("HTML to PDF conversion failed")
+                
+            self.update_progress(input_path, 50)
             
-            if not os.path.exists(temp_path):
-                raise Exception("截图失败，未生成图片文件")
+            # 2. PDF 转 图片
+            logger.info(f"Converting PDF to Image: {output_path}")
             
-            self.update_progress(input_path, 70)
+            # 确保开启合并模式 (merge=True)，这样多页 PDF 会变成一张长图
+            image_options = options.copy()
+            image_options['merge'] = True
             
-            # 根据目标格式处理
-            target_ext = output_path.split('.')[-1].lower()
-            
-            if target_ext in ['jpg', 'jpeg']:
-                # 转换为 JPG
-                img = Image.open(temp_path)
-                rgb_img = img.convert('RGB')
-                rgb_img.save(output_path, 'JPEG', quality=quality)
-                img.close()
-                os.remove(temp_path)
-            else:
-                # PNG 直接重命名
-                if temp_path != output_path:
-                    if os.path.exists(output_path):
-                        os.remove(output_path)
-                    os.rename(temp_path, output_path)
+            image_result = self.image_converter.convert(temp_pdf, output_path, **image_options)
             
             self.update_progress(input_path, 100)
             
@@ -145,10 +64,17 @@ class HtmlToImageConverter(BaseConverter):
                 'success': True,
                 'output_path': output_path,
                 'size': self.get_output_size(output_path),
-                'width': width,
-                'height': height
+                'method': 'browser_print_via_pdf'
             }
             
         except Exception as e:
+            logger.error(f"HTML to Image conversion failed: {str(e)}")
             self.cleanup_on_error(output_path)
             raise Exception(f"HTML to Image conversion failed: {str(e)}")
+        finally:
+            # 清理临时 PDF 文件
+            if temp_pdf and os.path.exists(temp_pdf):
+                try:
+                    os.remove(temp_pdf)
+                except Exception as e:
+                    logger.warning(f"Failed to remove temporary PDF {temp_pdf}: {e}")

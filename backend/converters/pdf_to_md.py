@@ -38,10 +38,26 @@ class PdfToMdConverter(BaseConverter):
             failed_pages = []
             use_native_mode = options.get('use_native_mode', True)
             
-            for page_num in range(total_pages):
+            # 解析页面范围
+            raw_page_range = options.get('pdf_page_range') or options.get('page_range')
+            pages = self.parse_page_range(raw_page_range, total_pages=total_pages)
+            
+            # 确定要处理的页面
+            if pages is None:
+                pages_to_process = range(total_pages)
+            else:
+                pages_to_process = pages
+            
+            processed_count = 0
+            total_to_process = len(pages_to_process)
+            
+            for page_num in pages_to_process:
+                if page_num < 0 or page_num >= total_pages:
+                    continue
+                    
                 page = doc.load_page(page_num)
                 
-                if page_num > 0:
+                if processed_count > 0:
                     md_content.append('\n---\n')  # 页面分隔符
                 
                 try:
@@ -66,7 +82,8 @@ class PdfToMdConverter(BaseConverter):
                     md_content.append(f"\n*[Page {page_num + 1} extraction failed]*\n")
                 
                 # 更新进度 (10% ~ 85%)
-                progress = 10 + int(((page_num + 1) / total_pages) * 75)
+                processed_count += 1
+                progress = 10 + int((processed_count / total_to_process) * 75)
                 self.update_progress(input_path, progress)
             
             doc.close()

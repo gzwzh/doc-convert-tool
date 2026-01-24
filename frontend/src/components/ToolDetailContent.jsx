@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿import { useState, useRef } from 'react';
+﻿﻿﻿﻿﻿﻿﻿import { useState, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import JSZip from 'jszip';
@@ -8,6 +8,37 @@ import { convertJSON, convertXML, convertGeneral } from '../services/api';
 import { categories } from '../data';
 
 const API_BASE_URL = 'http://127.0.0.1:8002';
+
+// 文件类型映射表
+const FILE_TYPE_MAP = {
+  'PDF': ['.pdf'],
+  'DOCX': ['.docx', '.doc'],
+  'DOC': ['.docx', '.doc'],
+  'HTML': ['.html', '.htm'],
+  'JSON': ['.json'],
+  'XML': ['.xml'],
+  'TXT': ['.txt', '.text'],
+  'CSV': ['.csv'],
+  'XLSX': ['.xlsx', '.xls'],
+  'YAML': ['.yaml', '.yml'],
+  'YML': ['.yaml', '.yml'],
+  'MD': ['.md', '.markdown'],
+  'MARKDOWN': ['.md', '.markdown'],
+  'RTF': ['.rtf'],
+  'EPUB': ['.epub'],
+  'PPT': ['.ppt', '.pptx'],
+  'PPTX': ['.ppt', '.pptx'],
+  'ODT': ['.odt'],
+  'SVG': ['.svg'],
+  'PNG': ['.png'],
+  'JPG': ['.jpg', '.jpeg'],
+  'JPEG': ['.jpg', '.jpeg'],
+  'GIF': ['.gif'],
+  'BMP': ['.bmp'],
+  'WEBP': ['.webp'],
+  'TIFF': ['.tiff', '.tif'],
+  'PSD': ['.psd']
+};
 
 function ToolDetailContent({ toolName, onBack }) {
   const navigate = useNavigate();
@@ -47,10 +78,12 @@ function ToolDetailContent({ toolName, onBack }) {
     speechPitch: 1.0,
     speechLanguage: '中文 (普通话)',
     pageSize: 'A4',
-    docxPdfPageRange: ''
+    docxPdfPageRange: '',
+    pdfCustomRange: ''
   });
   const [htmlOptions, setHtmlOptions] = useState({
     enablePreview: false,
+    codeMode: false,  // 默认不勾选代码模式（即默认渲染模式）
     cssHandling: '保留所有 CSS',
     compressCss: false,
     customCss: '',
@@ -66,37 +99,59 @@ function ToolDetailContent({ toolName, onBack }) {
   const [previewContent, setPreviewContent] = useState('');
   const [isToolDropdownOpen, setIsToolDropdownOpen] = useState(false);
 
-  const toggleSection = (section) => {
+  const toggleSection = useCallback((section) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
-  };
+  }, []);
 
-  const parseToolName = (name) => {
+  const parseToolName = useCallback((name) => {
     const parts = name.split(' To ');
     if (parts.length === 2) {
       return { source: parts[0], target: parts[1] };
     }
     return { source: 'FILE', target: 'FILE' };
-  };
+  }, []);
 
-  const { source, target } = parseToolName(toolName);
+  const { source, target } = useMemo(() => parseToolName(toolName), [toolName, parseToolName]);
 
-  const formatToolDisplayName = (name) => {
+  // 获取允许的文件扩展名
+  const allowedExtensions = useMemo(() => {
+    return FILE_TYPE_MAP[source] || [];
+  }, [source]);
+
+  // 获取 accept 属性值（用于 input）
+  const acceptAttribute = useMemo(() => {
+    return allowedExtensions.join(',');
+  }, [allowedExtensions]);
+
+  // 验证文件类型
+  const isValidFileType = useCallback((file) => {
+    if (allowedExtensions.length === 0) return true; // 如果没有限制，允许所有文件
+    const fileName = file.name.toLowerCase();
+    return allowedExtensions.some(ext => fileName.endsWith(ext.toLowerCase()));
+  }, [allowedExtensions]);
+
+  const formatToolDisplayName = useCallback((name) => {
     const parts = name.split(' To ');
     if (parts.length === 2) {
       return `${parts[0]}转为${parts[1]}`;
     }
     return name;
-  };
+  }, []);
 
-  const majorCategory = categories['主要功能'] || [];
-  let currentSection = null;
-  for (const section of majorCategory) {
-    if (section.tools && section.tools.some((t) => t.name === toolName)) {
-      currentSection = section;
-      break;
+  const { currentSection, siblingTools } = useMemo(() => {
+    const majorCategory = categories['主要功能'] || [];
+    let section = null;
+    for (const s of majorCategory) {
+      if (s.tools && s.tools.some((t) => t.name === toolName)) {
+        section = s;
+        break;
+      }
     }
-  }
-  const siblingTools = currentSection ? currentSection.tools.map((t) => t.name) : [];
+    return {
+      currentSection: section,
+      siblingTools: section ? section.tools.map((t) => t.name) : []
+    };
+  }, [toolName]);
 
   // Determine if the right sidebar should be shown
   let showSidebar = source === 'JSON' 
@@ -200,35 +255,96 @@ function ToolDetailContent({ toolName, onBack }) {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    const droppedFiles = Array.from(e.dataTransfer.files).map(file => ({
-      id: Date.now() + Math.random().toString(36).substr(2, 9),
-      file
-    }));
-    if (droppedFiles.length > 0) {
-      setFiles(prev => [...prev, ...droppedFiles]);
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    
+    // 验证文件类型
+    const validFiles = droppedFiles.filter(isValidFileType);
+    const invalidFiles = droppedFiles.filter(file => !isValidFileType(file));
+    
+    // 显示错误提示
+    if (invalidFiles.length > 0) {
+      const invalidNames = invalidFiles.map(f => f.name).join(', ');
+      toast.error(
+        `只能上传 ${source} 格式的文件 (${allowedExtensions.join(', ')})\n无效文件: ${invalidNames}`,
+        { duration: 4000 }
+      );
+    }
+    
+    // 添加有效文件
+    if (validFiles.length > 0) {
+      const fileObjects = validFiles.map(file => ({
+        id: Date.now() + Math.random().toString(36).substr(2, 9),
+        file
+      }));
+      setFiles(prev => [...prev, ...fileObjects]);
+      
+      if (invalidFiles.length === 0) {
+        toast.success(`成功添加 ${validFiles.length} 个文件`);
+      }
     }
   };
 
   const handleFileSelect = (e) => {
-    const selectedFiles = Array.from(e.target.files).map(file => ({
-      id: Date.now() + Math.random().toString(36).substr(2, 9),
-      file
-    }));
-    if (selectedFiles.length > 0) {
-      setFiles(prev => [...prev, ...selectedFiles]);
+    const selectedFiles = Array.from(e.target.files);
+    
+    // 验证文件类型
+    const validFiles = selectedFiles.filter(isValidFileType);
+    const invalidFiles = selectedFiles.filter(file => !isValidFileType(file));
+    
+    // 显示错误提示
+    if (invalidFiles.length > 0) {
+      const invalidNames = invalidFiles.map(f => f.name).join(', ');
+      toast.error(
+        `只能上传 ${source} 格式的文件 (${allowedExtensions.join(', ')})\n无效文件: ${invalidNames}`,
+        { duration: 4000 }
+      );
     }
+    
+    // 添加有效文件
+    if (validFiles.length > 0) {
+      const fileObjects = validFiles.map(file => ({
+        id: Date.now() + Math.random().toString(36).substr(2, 9),
+        file
+      }));
+      setFiles(prev => [...prev, ...fileObjects]);
+      
+      if (invalidFiles.length === 0) {
+        toast.success(`成功添加 ${validFiles.length} 个文件`);
+      }
+    }
+    
     // Reset input
     e.target.value = '';
   };
 
   const handleFolderSelect = (e) => {
-    const selectedFiles = Array.from(e.target.files).map(file => ({
-      id: Date.now() + Math.random().toString(36).substr(2, 9),
-      file
-    }));
-    if (selectedFiles.length > 0) {
-      setFiles(prev => [...prev, ...selectedFiles]);
+    const selectedFiles = Array.from(e.target.files);
+    
+    // 验证文件类型
+    const validFiles = selectedFiles.filter(isValidFileType);
+    const invalidFiles = selectedFiles.filter(file => !isValidFileType(file));
+    
+    // 显示错误提示
+    if (invalidFiles.length > 0) {
+      toast.error(
+        `文件夹中有 ${invalidFiles.length} 个文件格式不符合要求，已自动过滤`,
+        { duration: 4000 }
+      );
     }
+    
+    // 添加有效文件
+    if (validFiles.length > 0) {
+      const fileObjects = validFiles.map(file => ({
+        id: Date.now() + Math.random().toString(36).substr(2, 9),
+        file
+      }));
+      setFiles(prev => [...prev, ...fileObjects]);
+      toast.success(`成功添加 ${validFiles.length} 个文件`);
+    } else if (selectedFiles.length > 0) {
+      toast.error(`文件夹中没有符合 ${source} 格式的文件`);
+    }
+    
     // Reset input
     e.target.value = '';
   };
@@ -478,8 +594,76 @@ function ToolDetailContent({ toolName, onBack }) {
     }
   };
 
+  const validatePageRange = (range) => {
+    if (!range || !range.trim()) return false;
+    // Allow "1", "1,3", "1-5", "1,3-5", "1, 3, 5"
+    // Remove spaces for regex check
+    const cleanRange = range.replace(/\s/g, '');
+    // Check for valid characters (digits, comma, hyphen)
+    if (!/^[\d,-]+$/.test(cleanRange)) return false;
+    
+    // Check structure
+    const parts = cleanRange.split(',');
+    for (const part of parts) {
+      if (!part) continue; // Handle trailing comma
+      if (part.includes('-')) {
+        const ranges = part.split('-');
+        if (ranges.length !== 2) return false; // "1-2-3" is invalid
+        const start = parseInt(ranges[0]);
+        const end = parseInt(ranges[1]);
+        if (isNaN(start) || isNaN(end)) return false;
+        if (start > end) return false; // "5-1" is invalid (though backend might handle swap, better to enforce order)
+      } else {
+        if (isNaN(parseInt(part))) return false;
+      }
+    }
+    return true;
+  };
+
+  const validateHexColor = (color) => {
+    if (!color) return true; // Optional or default
+    return /^#([0-9A-Fa-f]{3}){1,2}$/.test(color);
+  };
+
   const handleConvert = async () => {
     if (files.length === 0) return;
+
+    // Validation
+    // PDF/DOCX Page Range
+    if (source === 'PDF' && convertOptions.pdfPageSelection !== '所有页面') {
+      if (!validatePageRange(convertOptions.pdfCustomRange)) {
+        toast.error('PDF 页码范围格式不正确。请使用如 "1-5" 或 "1,3,5" 的格式。');
+        return;
+      }
+    }
+
+    if (source === 'DOCX' && target === 'PDF' && convertOptions.docxPdfPageRange) {
+      if (!validatePageRange(convertOptions.docxPdfPageRange)) {
+        toast.error('DOCX 页码范围格式不正确。请使用如 "1-5" 或 "1,3,5" 的格式。');
+        return;
+      }
+    }
+
+    // GIF Delay
+    if (target === 'GIF') {
+      const delay = parseInt(convertOptions.animationDelay);
+      if (isNaN(delay) || delay < 10 || delay > 5000) {
+        toast.error('动画延迟必须在 10 到 5000 毫秒之间');
+        return;
+      }
+    }
+
+    // Background Color (Global check if present in current options)
+    if (convertOptions.backgroundColor && !validateHexColor(convertOptions.backgroundColor)) {
+      toast.error('背景颜色格式不正确。请使用十六进制颜色码，如 #FFFFFF');
+      return;
+    }
+
+    // Watermark Color
+    if (isWatermarkExpanded && watermarkOptions.color && !validateHexColor(watermarkOptions.color)) {
+      toast.error('水印颜色格式不正确。请使用十六进制颜色码，如 #CCCCCC');
+      return;
+    }
 
     setIsConverting(true);
     setConversionResults({});
@@ -561,6 +745,7 @@ function ToolDetailContent({ toolName, onBack }) {
             
             if (source === 'HTML') {
               options.enable_preview = htmlOptions.enablePreview;
+              options.codeMode = htmlOptions.codeMode;  // 直接使用 codeMode
               options.css_handling = htmlOptions.cssHandling;
               options.compress_css = htmlOptions.compressCss;
               options.custom_css = htmlOptions.customCss;
@@ -597,6 +782,9 @@ function ToolDetailContent({ toolName, onBack }) {
             if (source === 'PDF') {
               options.quality = convertOptions.quality;
               options.pdf_page_selection = convertOptions.pdfPageSelection;
+              if (convertOptions.pdfPageSelection !== '所有页面') {
+                options.pdf_page_range = convertOptions.pdfCustomRange;
+              }
               // 图片输出选项
               if (['PNG', 'JPG', 'JPEG', 'BMP', 'WEBP', 'SVG'].includes(target)) {
                 options.backgroundColor = convertOptions.backgroundColor;
@@ -692,6 +880,7 @@ function ToolDetailContent({ toolName, onBack }) {
               options.csv_delimiter = convertOptions.csvDelimiter;
             }
             
+            console.log(`[Frontend] Converting ${file.name} to ${targetFormat} with options:`, options);
             result = await convertGeneral(file, targetFormat, options);
           } else {
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -794,124 +983,51 @@ function ToolDetailContent({ toolName, onBack }) {
       </div>
 
       <div className={`main-content ${!showSidebar ? 'no-sidebar' : ''}`}>
-        <div className="upload-section">
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileSelect} 
-            style={{ display: 'none' }} 
-            multiple 
-          />
-          <input 
-            type="file" 
-            ref={folderInputRef} 
-            onChange={handleFolderSelect} 
-            style={{ display: 'none' }} 
-            webkitdirectory=""
-            directory=""
-            multiple
-          />
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleFileSelect} 
+          style={{ display: 'none' }} 
+          multiple 
+          accept={acceptAttribute}
+        />
+        <input 
+          type="file" 
+          ref={folderInputRef} 
+          onChange={handleFolderSelect} 
+          style={{ display: 'none' }} 
+          webkitdirectory=""
+          directory=""
+          multiple
+        />
 
-          <div 
-            className={`upload-area ${isDragging ? 'dragging' : ''}`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <div className="upload-content">
-              <div className="upload-icon-wrapper">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#00a3ff" strokeWidth="1.5">
-                  <path d="M17.5 19c2.5 0 4.5-2 4.5-4.5 0-2.3-1.7-4.1-3.9-4.5-.5-3.1-3.1-5.5-6.1-5.5-2.5 0-4.6 1.6-5.4 3.9C4.3 8.1 2 9.8 2 12.5 2 15 4 17 6.5 17h1" strokeLinecap="round" strokeLinejoin="round"/>
-                  <polyline points="12 12 12 16" strokeLinecap="round" strokeLinejoin="round"/>
-                  <polyline points="9 13 12 10 15 13" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <div className="upload-text-row">
-                <span className="upload-main-text">在这里拖放你的{source}文件或文件夹</span>
-              </div>
-              <p className="upload-sub-text">支持批量上传</p>
-              <div className="upload-buttons-container">
-                <button className="select-file-btn" onClick={() => fileInputRef.current.click()}>
-                  + 选择文件
-                </button>
-              </div>
+        <div 
+          className={`upload-area ${isDragging ? 'dragging' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div className="upload-content">
+            <div className="upload-icon-wrapper">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#00a3ff" strokeWidth="1.5">
+                <path d="M17.5 19c2.5 0 4.5-2 4.5-4.5 0-2.3-1.7-4.1-3.9-4.5-.5-3.1-3.1-5.5-6.1-5.5-2.5 0-4.6 1.6-5.4 3.9C4.3 8.1 2 9.8 2 12.5 2 15 4 17 6.5 17h1" strokeLinecap="round" strokeLinejoin="round"/>
+                <polyline points="12 12 12 16" strokeLinecap="round" strokeLinejoin="round"/>
+                <polyline points="9 13 12 10 15 13" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div className="upload-text-row">
+              <span className="upload-main-text">在这里拖放你的{source}文件或文件夹</span>
+            </div>
+            <p className="upload-sub-text">
+              支持批量上传 {allowedExtensions.length > 0 ? `(${allowedExtensions.join(', ')})` : ''}
+            </p>
+            <div className="upload-buttons-container">
+              <button className="select-file-btn" onClick={() => fileInputRef.current.click()}>
+                + 选择文件
+              </button>
             </div>
           </div>
-
-      <div className="file-list-container">
-        <div className="file-list-header">
-          <h3 className="file-list-title">文件列表 ({files.length})</h3>
-          <div className="file-list-actions">
-            <button className="file-action-btn" onClick={() => {}} disabled={files.length === 0}>全选</button>
-            <button className="file-action-btn" onClick={() => {}} disabled={files.length === 0}>取消全选</button>
-            <button 
-              className="file-action-btn file-action-btn-primary"
-              onClick={handleConvert}
-              disabled={isConverting || files.length === 0}
-            >
-              {isConverting ? '转换中...' : '全部转换'}
-            </button>
-            <button className="file-action-btn" onClick={handleClearAll} disabled={files.length === 0}>清空全部</button>
-            <button className="file-action-btn" disabled={files.length === 0} onClick={handleDownloadAll}>全部下载</button>
-          </div>
         </div>
-        
-        <div className="file-list-body">
-          {files.length > 0 ? (
-            <div className="file-list-content">
-              {files.map((fileObj) => (
-                <div key={fileObj.id} className="file-item-card">
-                  <div className="file-item-left">
-                    <div className={`file-icon-circle ${isConverting ? 'loading' : ''}`}>
-                      <span className="file-type-text">{source}</span>
-                      {isConverting && <div className="loading-ring"></div>}
-                    </div>
-                    <div className="file-info">
-                      <div className="file-name" title={fileObj.file.name}>{fileObj.file.name}</div>
-                      <div className="file-size">{(fileObj.file.size / 1024).toFixed(2)} KB</div>
-                    </div>
-                  </div>
-
-                  <div className="file-item-right">
-                    {conversionResults[fileObj.id] && !conversionResults[fileObj.id].error && (
-                      <a 
-                        href={`${API_BASE_URL}${conversionResults[fileObj.id].download_url}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="status-btn finish"
-                        title="下载"
-                      >
-                        Finish
-                      </a>
-                    )}
-                    {conversionResults[fileObj.id] && conversionResults[fileObj.id].error && (
-                      <span className="status-btn error">Error</span>
-                    )}
-                    {!conversionResults[fileObj.id] && isConverting && (
-                      <span className="status-btn converting">Converting...</span>
-                    )}
-                    <button 
-                      onClick={() => handleRemoveFile(fileObj.id)}
-                      className="btn-delete"
-                      title="删除"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="file-list-empty">
-              <p>暂无文件，请在上方添加</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
 
         {showSidebar && (
           <div className="config-box-wrapper">
@@ -944,6 +1060,14 @@ function ToolDetailContent({ toolName, onBack }) {
                           onChange={(e) => setHtmlOptions({...htmlOptions, enablePreview: e.target.checked})}
                         />
                         <span>启用预览</span>
+                      </label>
+                      <label className="checkbox-label">
+                        <input 
+                          type="checkbox" 
+                          checked={htmlOptions.codeMode}
+                          onChange={(e) => setHtmlOptions({...htmlOptions, codeMode: e.target.checked})}
+                        />
+                        <span>转换为源代码（勾选则输出带高亮的代码 PDF）</span>
                       </label>
                       <button className="preview-html-btn" onClick={handlePreviewHtml}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -989,23 +1113,6 @@ function ToolDetailContent({ toolName, onBack }) {
                           </svg>
                         </div>
                       </div>
-                      <label className="checkbox-label">
-                        <input 
-                          type="checkbox" 
-                          checked={htmlOptions.compressCss}
-                          onChange={(e) => setHtmlOptions({...htmlOptions, compressCss: e.target.checked})}
-                        />
-                        <span>压缩 CSS</span>
-                      </label>
-                      <div className="sub-option">
-                        <label>自定义 CSS</label>
-                        <textarea 
-                          placeholder="在此输入您的自定义 CSS..."
-                          value={htmlOptions.customCss}
-                          onChange={(e) => setHtmlOptions({...htmlOptions, customCss: e.target.value})}
-                          rows={4}
-                        />
-                      </div>
                     </div>
                   )}
                 </div>
@@ -1032,26 +1139,10 @@ function ToolDetailContent({ toolName, onBack }) {
                         <label className="checkbox-label">
                           <input 
                             type="checkbox" 
-                            checked={htmlOptions.removeComments}
-                            onChange={(e) => setHtmlOptions({...htmlOptions, removeComments: e.target.checked})}
-                          />
-                          <span>移除 HTML 注释</span>
-                        </label>
-                        <label className="checkbox-label">
-                          <input 
-                            type="checkbox" 
                             checked={htmlOptions.compressHtml}
                             onChange={(e) => setHtmlOptions({...htmlOptions, compressHtml: e.target.checked})}
                           />
                           <span>压缩 HTML</span>
-                        </label>
-                        <label className="checkbox-label">
-                          <input 
-                            type="checkbox" 
-                            checked={htmlOptions.removeEmptyTags}
-                            onChange={(e) => setHtmlOptions({...htmlOptions, removeEmptyTags: e.target.checked})}
-                          />
-                          <span>移除空标签</span>
                         </label>
                       </div>
                     </div>
@@ -1207,6 +1298,58 @@ function ToolDetailContent({ toolName, onBack }) {
                           </svg>
                         </div>
                       </div>
+
+                      {convertOptions.pdfPageSelection === '页面范围' && (
+                        <div className="sub-option" style={{ marginTop: '12px' }}>
+                          <input 
+                            type="text" 
+                            placeholder="例如: 1-5" 
+                            value={convertOptions.pdfCustomRange}
+                            onChange={(e) => setConvertOptions({...convertOptions, pdfCustomRange: e.target.value})}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            style={{ 
+                              width: '100%', 
+                              padding: '8px 12px', 
+                              borderRadius: '6px', 
+                              border: '1px solid #e2e8f0',
+                              fontSize: '14px',
+                              outline: 'none',
+                              transition: 'all 0.2s',
+                              color: '#1e293b',
+                              backgroundColor: '#ffffff',
+                              zIndex: 10,
+                              position: 'relative'
+                            }}
+                          />
+                        </div>
+                      )}
+                      
+                      {convertOptions.pdfPageSelection === '特定页面' && (
+                        <div className="sub-option" style={{ marginTop: '12px' }}>
+                          <input 
+                            type="text" 
+                            placeholder="例如: 1,3,5" 
+                            value={convertOptions.pdfCustomRange}
+                            onChange={(e) => setConvertOptions({...convertOptions, pdfCustomRange: e.target.value})}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            style={{ 
+                              width: '100%', 
+                              padding: '8px 12px', 
+                              borderRadius: '6px', 
+                              border: '1px solid #e2e8f0',
+                              fontSize: '14px',
+                              outline: 'none',
+                              transition: 'all 0.2s',
+                              color: '#1e293b',
+                              backgroundColor: '#ffffff',
+                              zIndex: 10,
+                              position: 'relative'
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1878,6 +2021,81 @@ function ToolDetailContent({ toolName, onBack }) {
         </div>
       )}
 
+      <div className="file-list-container">
+        <div className="file-list-header">
+          <h3 className="file-list-title">文件列表 ({files.length})</h3>
+          <div className="file-list-actions">
+            <button className="file-action-btn" onClick={() => {}} disabled={files.length === 0}>全选</button>
+            <button className="file-action-btn" onClick={() => {}} disabled={files.length === 0}>取消全选</button>
+            <button 
+              className="file-action-btn file-action-btn-primary"
+              onClick={handleConvert}
+              disabled={isConverting || files.length === 0}
+            >
+              {isConverting ? '转换中...' : '全部转换'}
+            </button>
+            <button className="file-action-btn" onClick={handleClearAll} disabled={files.length === 0}>清空全部</button>
+            <button className="file-action-btn" disabled={files.length === 0} onClick={handleDownloadAll}>全部下载</button>
+          </div>
+        </div>
+        
+        <div className="file-list-body">
+          {files.length > 0 ? (
+            <div className="file-list-content">
+              {files.map((fileObj) => (
+                <div key={fileObj.id} className="file-item-card">
+                  <div className="file-item-left">
+                    <div className={`file-icon-circle ${isConverting ? 'loading' : ''}`}>
+                      <span className="file-type-text">{source}</span>
+                      {isConverting && <div className="loading-ring"></div>}
+                    </div>
+                    <div className="file-info">
+                      <div className="file-name" title={fileObj.file.name}>{fileObj.file.name}</div>
+                      <div className="file-size">{(fileObj.file.size / 1024).toFixed(2)} KB</div>
+                    </div>
+                  </div>
+
+                  <div className="file-item-right">
+                    {conversionResults[fileObj.id] && !conversionResults[fileObj.id].error && (
+                      <a 
+                        href={`${API_BASE_URL}${conversionResults[fileObj.id].download_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="status-btn finish"
+                        title="下载"
+                      >
+                        Finish
+                      </a>
+                    )}
+                    {conversionResults[fileObj.id] && conversionResults[fileObj.id].error && (
+                      <span className="status-btn error">Error</span>
+                    )}
+                    {!conversionResults[fileObj.id] && isConverting && (
+                      <span className="status-btn converting">Converting...</span>
+                    )}
+                    <button 
+                      onClick={() => handleRemoveFile(fileObj.id)}
+                      className="btn-delete"
+                      title="删除"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="file-list-empty">
+              <p>暂无文件，请在上方添加</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+
       {showDownloadModal && (
         <div className="modal-overlay" onClick={() => setShowDownloadModal(false)}>
           <div className="download-modal" onClick={e => e.stopPropagation()}>
@@ -1944,7 +2162,6 @@ function ToolDetailContent({ toolName, onBack }) {
           </div>
         </div>
       )}
-      </div>
     </motion.div>
   );
 }

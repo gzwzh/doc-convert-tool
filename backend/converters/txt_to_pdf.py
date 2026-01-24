@@ -30,6 +30,22 @@ class TxtToPdfConverter(BaseConverter):
             font_size = options.get('font_size', 12)
             line_height = options.get('line_height', 1.6)
             
+            # 处理页面设置
+            orientation_opt = options.get('orientation')
+            orientation = str(orientation_opt).strip() if orientation_opt else '纵向'
+            
+            page_size_opt = options.get('page_size')
+            page_size = str(page_size_opt).strip() if page_size_opt and str(page_size_opt) != 'None' else 'A4'
+            
+            # Debug log
+            try:
+                with open('conversion_debug.log', 'a', encoding='utf-8') as f:
+                    f.write(f"TXT Conversion: orientation='{orientation}', page_size='{page_size}'\n")
+            except:
+                pass
+
+            css_orientation = 'landscape' if orientation == '横向' else 'portrait'
+            
             with open(input_path, 'r', encoding='utf-8', errors='ignore') as f:
                 text = f.read()
             
@@ -48,6 +64,10 @@ class TxtToPdfConverter(BaseConverter):
     <meta charset="utf-8">
     <title>Text Document</title>
     <style>
+        @page {{
+            size: {page_size} {css_orientation} !important;
+            margin: 20mm !important;
+        }}
         body {{
             font-family: "Microsoft YaHei", "SimSun", "Consolas", monospace;
             background-color: #ffffff;

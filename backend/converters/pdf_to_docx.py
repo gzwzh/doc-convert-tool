@@ -1,6 +1,6 @@
 from pdf2docx import Converter
 from .base import BaseConverter
-from typing import Dict, Any
+from typing import Dict, Any, List
 import os
 
 class PdfToDocxConverter(BaseConverter):
@@ -29,7 +29,15 @@ class PdfToDocxConverter(BaseConverter):
             
             # 获取选项
             extract_images = options.get('extract_images', True)
-            page_range = options.get('page_range', None)  # 例如: "1-5,8,10-12"
+            
+            # 获取页码范围 (支持多种参数名)
+            raw_page_range = options.get('pdf_page_range') or options.get('page_range')
+            print(f"[PdfToDocx] Options received: {options.keys()}")
+            print(f"[PdfToDocx] Raw page range: '{raw_page_range}'")
+            
+            # 解析页码范围 (此时还不知道总页数，先不传 total_pages)
+            pages = self.parse_page_range(raw_page_range)
+            print(f"[PdfToDocx] Parsed pages: {pages}")
             
             self.update_progress(input_path, 10)
             
@@ -38,7 +46,7 @@ class PdfToDocxConverter(BaseConverter):
                 result = self._convert_with_pdf2docx(
                     input_path, output_path, 
                     extract_images=extract_images,
-                    page_range=page_range
+                    pages=pages
                 )
                 self.update_progress(input_path, 100)
                 return result
@@ -50,7 +58,8 @@ class PdfToDocxConverter(BaseConverter):
                 try:
                     result = self._convert_with_pymupdf(
                         input_path, output_path,
-                        extract_images=extract_images
+                        extract_images=extract_images,
+                        pages=pages
                     )
                     self.update_progress(input_path, 100)
                     result['method'] = 'pymupdf_fallback'
@@ -65,28 +74,21 @@ class PdfToDocxConverter(BaseConverter):
     
     def _convert_with_pdf2docx(self, input_path: str, output_path: str, 
                                extract_images: bool = True, 
-                               page_range: str = None) -> Dict[str, Any]:
+                               pages: List[int] = None) -> Dict[str, Any]:
         """使用 pdf2docx 转换（主策略）"""
         cv = Converter(input_path)
-        
-        # 解析页码范围
-        start_page = 0
-        end_page = None
-        
-        if page_range:
-            # 简单解析，例如 "1-5" -> start=0, end=5
-            try:
-                if '-' in page_range:
-                    parts = page_range.split('-')
-                    start_page = int(parts[0]) - 1  # 转为0-based
-                    end_page = int(parts[1])
-            except:
-                print(f"[Warning] Invalid page_range: {page_range}, using all pages")
         
         self.update_progress(input_path, 20)
         
         # 转换
-        cv.convert(output_path, start=start_page, end=end_page)
+        # pdf2docx 的 convert 方法支持 pages 参数 (list of page indices, 0-based)
+        if pages:
+            print(f"[PdfToDocx] Converting specific pages: {pages}")
+            cv.convert(output_path, pages=pages)
+        else:
+            print(f"[PdfToDocx] Converting all pages")
+            cv.convert(output_path)
+            
         cv.close()
         
         self.update_progress(input_path, 90)
@@ -99,7 +101,8 @@ class PdfToDocxConverter(BaseConverter):
         }
     
     def _convert_with_pymupdf(self, input_path: str, output_path: str,
-                              extract_images: bool = True) -> Dict[str, Any]:
+                              extract_images: bool = True,
+                              pages: List[int] = None) -> Dict[str, Any]:
         """使用 PyMuPDF 降级方案（基础文本提取）"""
         try:
             import fitz  # PyMuPDF
@@ -113,9 +116,20 @@ class PdfToDocxConverter(BaseConverter):
         doc_word = Document()
         
         total_pages = len(doc_pdf)
+        
+        # 确定要转换的页码列表
+        if pages:
+            # 过滤有效的页码
+            target_pages = [p for p in pages if 0 <= p < total_pages]
+            if not target_pages:
+                print("[Warning] No valid pages selected, converting all pages")
+                target_pages = list(range(total_pages))
+        else:
+            target_pages = list(range(total_pages))
+            
         self.update_progress(input_path, 40)
         
-        for page_num in range(total_pages):
+        for i, page_num in enumerate(target_pages):
             page = doc_pdf[page_num]
             
             # 提取文本
@@ -141,11 +155,11 @@ class PdfToDocxConverter(BaseConverter):
                         print(f"[Image extraction failed] Page {page_num+1}, Image {img_index+1}: {e}")
             
             # 更新进度
-            progress = 40 + int(((page_num + 1) / total_pages) * 50)
+            progress = 40 + int(((i + 1) / len(target_pages)) * 50)
             self.update_progress(input_path, progress)
             
-            # 添加分页符
-            if page_num < total_pages - 1:
+            # 添加分页符 (除了最后一页)
+            if i < len(target_pages) - 1:
                 doc_word.add_page_break()
         
         doc_pdf.close()

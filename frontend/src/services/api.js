@@ -73,6 +73,7 @@ export const convertGeneral = async (file, targetFormat, options = {}) => {
     
     // HTML specific options
     if (options.enablePreview !== undefined) formData.append('enable_preview', options.enablePreview);
+    if (options.codeMode !== undefined) formData.append('code_mode', options.codeMode);
     if (options.cssHandling) formData.append('css_handling', options.cssHandling);
     if (options.compressCss !== undefined) formData.append('compress_css', options.compressCss);
     if (options.customCss) formData.append('custom_css', options.customCss);
@@ -100,6 +101,7 @@ export const convertGeneral = async (file, targetFormat, options = {}) => {
     
     // PDF page selection
     if (options.pdfPageSelection) formData.append('pdf_page_selection', options.pdfPageSelection);
+    if (options.pdf_page_range) formData.append('pdf_page_range', options.pdf_page_range);
     
     // GIF animation options
     if (options.animationDelay !== undefined) formData.append('animation_delay', options.animationDelay);

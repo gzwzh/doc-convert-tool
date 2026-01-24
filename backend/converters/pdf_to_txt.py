@@ -23,9 +23,19 @@ class PdfToTxtConverter(BaseConverter):
             self.validate_input(input_path)
             self.update_progress(input_path, 10)
             
+            # 获取总页数（用于页面范围验证）
+            import fitz
+            with fitz.open(input_path) as doc:
+                total_pages = doc.page_count
+            
+            # 解析页面范围
+            raw_page_range = options.get('pdf_page_range') or options.get('page_range')
+            pages = self.parse_page_range(raw_page_range, total_pages=total_pages)
+            
             # 策略1: 使用 pdfminer（推荐）
             try:
-                text = extract_text(input_path)
+                # pdfminer 的 page_numbers 参数接受 0-based 索引列表
+                text = extract_text(input_path, page_numbers=pages)
                 self.update_progress(input_path, 60)
                 method = 'pdfminer'
             except Exception as e1:
@@ -34,7 +44,7 @@ class PdfToTxtConverter(BaseConverter):
                 
                 # 策略2: 使用 PyMuPDF 降级
                 try:
-                    text = self._extract_with_pymupdf(input_path)
+                    text = self._extract_with_pymupdf(input_path, pages)
                     self.update_progress(input_path, 60)
                     method = 'pymupdf_fallback'
                 except Exception as e2:
@@ -60,14 +70,23 @@ class PdfToTxtConverter(BaseConverter):
             self.cleanup_on_error(output_path)
             raise Exception(f"PDF to TXT conversion failed: {str(e)}")
     
-    def _extract_with_pymupdf(self, input_path: str) -> str:
+    def _extract_with_pymupdf(self, input_path: str, pages=None) -> str:
         """使用 PyMuPDF 提取文本"""
         import fitz
         
         doc = fitz.open(input_path)
         text_content = []
         
-        for page_num in range(len(doc)):
+        # 确定要处理的页面
+        if pages is None:
+            pages_to_process = range(len(doc))
+        else:
+            pages_to_process = pages
+        
+        for page_num in pages_to_process:
+            if page_num < 0 or page_num >= len(doc):
+                continue
+                
             page = doc[page_num]
             text = page.get_text("text", sort=True)
             if text.strip():

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { categories } from '../data';
 import ToolHeader from '../components/ToolHeader';
@@ -10,7 +10,10 @@ import '../App.css';
 function MainPage() {
   const { source, target } = useParams();
   // 默认使用第一个分类组，你可以根据需要修改这里
-  const categoryData = categories['主要功能'] || categories['文档类'] || []; 
+  const categoryData = useMemo(() => 
+    categories['主要功能'] || categories['文档类'] || [], 
+    []
+  ); 
   
   const [activeSection, setActiveSection] = useState(null);
   const [selectedTool, setSelectedTool] = useState(null);
@@ -34,16 +37,11 @@ function MainPage() {
     if (categoryData && categoryData.length > 0) {
       setActiveSection(categoryData[0]);
     }
-  }, []); // 仅挂载时执行一次
+  }, [categoryData]); // 添加依赖
 
   // 处理 URL 参数，自动定位到工具页
   useEffect(() => {
     if (source && target && categoryData) {
-      // 将 URL 参数转换为工具名称 (例如: pdf/word -> "PDF To Word")
-      // 注意：这里的匹配逻辑需要根据 data.js 中的实际命名规范进行调整
-      // 当前示例假设 URL 参数直接对应工具名称
-      
-      // 简单的大小写转换示例
       const toolName = `${source.toUpperCase()} To ${target.toUpperCase()}`;
       
       // 查找包含该工具的分类
@@ -58,15 +56,24 @@ function MainPage() {
         }
       }
     }
-  }, [source, target]);
+  }, [source, target, categoryData]); // 添加依赖
 
-  const handleBackToGrid = () => {
+  const handleBackToGrid = useCallback(() => {
     setSelectedTool(null);
-  };
+  }, []);
+
+  const handleSectionClick = useCallback((section) => {
+    setActiveSection(section);
+    setSelectedTool(null);
+  }, []);
+
+  const handleToolClick = useCallback((tool, section) => {
+    setActiveSection(section);
+    setSelectedTool(tool.name);
+  }, []);
 
   // 渲染具体业务组件的函数
-  // 你应该在这里根据 selectedTool 渲染不同的组件
-  const renderFeatureComponent = () => {
+  const renderFeatureComponent = useMemo(() => {
     if (!selectedTool) return null;
 
     return (
@@ -75,7 +82,41 @@ function MainPage() {
         onBack={handleBackToGrid}
       />
     );
-  };
+  }, [selectedTool, handleBackToGrid]);
+
+  // 优化工具卡片渲染
+  const toolCards = useMemo(() => {
+    if (!activeSection) return null;
+    
+    return activeSection.tools.map((tool) => {
+      const parts = tool.name.split(' To ');
+      const source = parts[0] || 'TOOL';
+      const target = parts[1] || 'BOX';
+      
+      return (
+        <div 
+          key={tool.name} 
+          className="tool-card"
+          onClick={() => setSelectedTool(tool.name)}
+        >
+          <div className="tool-card-icon">
+            <span className="format-text source">{source}</span>
+            <div className="format-divider"></div>
+            <span className="format-text target">{target}</span>
+          </div>
+          <div className="card-content">
+            <div className="card-header-row">
+              <h3 className="card-title">{tool.name}</h3>
+              <div className="card-tags">
+                <span className="tag">{source} TOOLS</span>
+              </div>
+            </div>
+            <p className="card-desc">{tool.description}</p>
+          </div>
+        </div>
+      );
+    });
+  }, [activeSection]);
 
   if (!activeSection) return null;
 
@@ -86,19 +127,13 @@ function MainPage() {
         <ToolSidebar 
           sections={categoryData} 
           activeSection={activeSection} 
-          onSectionClick={(section) => {
-            setActiveSection(section);
-            setSelectedTool(null);
-          }} 
-          onToolClick={(tool, section) => {
-            setActiveSection(section);
-            setSelectedTool(tool.name);
-          }}
+          onSectionClick={handleSectionClick} 
+          onToolClick={handleToolClick}
         />
         <main className="content-area">
           <div className="content-wrapper">
             {selectedTool ? (
-              renderFeatureComponent()
+              renderFeatureComponent
             ) : (
               <>
                 <div className="section-header">
@@ -108,34 +143,7 @@ function MainPage() {
                 
                 {/* 网格视图 */}
                 <div className="card-grid">
-                  {activeSection.tools.map((tool) => {
-                    const parts = tool.name.split(' To ');
-                    const source = parts[0] || 'TOOL';
-                    const target = parts[1] || 'BOX';
-                    
-                    return (
-                      <div 
-                        key={tool.name} 
-                        className="tool-card"
-                        onClick={() => setSelectedTool(tool.name)}
-                      >
-                        <div className="tool-card-icon">
-                          <span className="format-text source">{source}</span>
-                          <div className="format-divider"></div>
-                          <span className="format-text target">{target}</span>
-                        </div>
-                        <div className="card-content">
-                          <div className="card-header-row">
-                            <h3 className="card-title">{tool.name}</h3>
-                            <div className="card-tags">
-                              <span className="tag">{source} TOOLS</span>
-                            </div>
-                          </div>
-                          <p className="card-desc">{tool.description}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {toolCards}
                 </div>
               </>
             )}

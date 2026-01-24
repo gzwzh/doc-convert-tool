@@ -39,6 +39,16 @@ class PdfToJsonConverter(BaseConverter):
             include_links = options.get('include_links', True)
             include_tables = options.get('include_tables', True)
             
+            # 解析页面范围
+            raw_page_range = options.get('pdf_page_range') or options.get('page_range')
+            pages = self.parse_page_range(raw_page_range, total_pages=total_pages)
+            
+            # 确定要处理的页面
+            if pages is None:
+                pages_to_process = range(total_pages)
+            else:
+                pages_to_process = pages
+            
             result = {
                 'metadata': {
                     'title': doc.metadata.get('title', ''),
@@ -49,13 +59,20 @@ class PdfToJsonConverter(BaseConverter):
                     'creation_date': doc.metadata.get('creationDate', ''),
                     'modification_date': doc.metadata.get('modDate', ''),
                     'page_count': total_pages,
+                    'processed_pages': len(pages_to_process),
                     'encrypted': doc.is_encrypted,
                     'format': 'PDF'
                 },
                 'pages': []
             }
             
-            for page_num in range(total_pages):
+            processed_count = 0
+            total_to_process = len(pages_to_process)
+            
+            for page_num in pages_to_process:
+                if page_num < 0 or page_num >= total_pages:
+                    continue
+                    
                 page = doc.load_page(page_num)
                 
                 page_data = {
@@ -134,7 +151,8 @@ class PdfToJsonConverter(BaseConverter):
                 result['pages'].append(page_data)
                 
                 # 更新进度 (10% ~ 85%)
-                progress = 10 + int(((page_num + 1) / total_pages) * 75)
+                processed_count += 1
+                progress = 10 + int((processed_count / total_to_process) * 75)
                 self.update_progress(input_path, progress)
             
             doc.close()

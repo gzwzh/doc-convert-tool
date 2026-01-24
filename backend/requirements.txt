@@ -11,3 +11,5 @@ html2image==2.0.4.3
 python-docx
 pymupdf
 pdf2docx
+pdfminer.six
+pygments

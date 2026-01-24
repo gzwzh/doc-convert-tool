@@ -40,20 +40,20 @@
   --primary-light: #1e293b;
   --primary-soft: rgba(96, 165, 250, 0.15);
 
-  --text-primary: #f1f5f9;
+  --text-primary: #e2e8f0;
   --text-secondary: #94a3b8;
 
   --bg-color: #0f172a;
   --card-bg: #1e293b;
 
-  --border-color: rgba(148, 163, 184, 0.1);
+  --border-color: rgba(148, 163, 184, 0.15);
   --hover-bg: #334155;
   --active-bg: #475569;
 
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 25px 40px -10px rgba(0, 0, 0, 0.4), 0 10px 20px -8px rgba(0, 0, 0, 0.3);
-  --shadow-glow: 0 0 25px rgba(96, 165, 250, 0.2);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 25px 40px -10px rgba(0, 0, 0, 0.5), 0 10px 20px -8px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 25px rgba(96, 165, 250, 0.25);
 }
 
 /* 窗口圆角与拖拽支持 */
@@ -924,6 +924,8 @@ body {
 }
 
 .config-box-wrapper {
+  grid-column: 2;
+  grid-row: 1;
   width: 320px;
   background: var(--card-bg);
   border-radius: 12px;
@@ -933,6 +935,8 @@ body {
   flex-direction: column;
   border: 1px solid var(--border-color);
   height: fit-content;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .config-header {
@@ -2865,21 +2869,21 @@ body {
 
 .main-content {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr 320px;
+  grid-template-rows: auto auto;
   gap: 24px;
   margin-bottom: 32px;
+  align-items: start;
 }
 
 .main-content.no-sidebar {
   grid-template-columns: 1fr;
-}
-
-.upload-section {
-  display: flex;
-  flex-direction: column;
+  grid-template-rows: auto auto;
 }
 
 .upload-area {
+  grid-column: 1;
+  grid-row: 1;
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 40px;
@@ -3924,58 +3928,68 @@ body {
    ======================================== */
 
 .file-list-container {
+  grid-column: 1 / -1;
+  grid-row: 2;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  margin-top: 24px;
-  overflow: visible;
+  margin-top: 0;
+  overflow: hidden;
   box-shadow: var(--shadow-sm);
   padding: 0;
-  display: block;
+  display: flex;
+  flex-direction: column;
 }
 
 .file-list-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  padding: 14px 20px;
   background: var(--card-bg);
   border-bottom: 1px solid var(--border-color);
-  border-radius: 12px 12px 0 0;
+  flex-shrink: 0;
 }
 
 .file-list-title {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text-primary);
   margin: 0;
 }
 
 .file-list-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
+  align-items: center;
 }
 
 .file-action-btn {
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 400;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-secondary);
-  background: var(--hover-bg);
+  background: transparent;
   border: 1px solid var(--border-color);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .file-action-btn:hover:not(:disabled) {
-  background: var(--active-bg);
+  background: var(--hover-bg);
   color: var(--text-primary);
   border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.file-action-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .file-action-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -3983,26 +3997,46 @@ body {
   background: var(--primary-color);
   color: white;
   border-color: var(--primary-color);
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
 }
 
 .file-action-btn-primary:hover:not(:disabled) {
   background: var(--primary-dark);
   border-color: var(--primary-dark);
+  box-shadow: 0 3px 6px rgba(37, 99, 235, 0.3);
 }
 
 /* 文件列表内容区域 */
 .file-list-body {
-  margin: 20px;
-  border: 2px dashed var(--border-color);
-  border-radius: 8px;
-  min-height: 100px;
-  position: relative;
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .file-list-content {
-  padding: 16px;
-  max-height: 400px;
+  padding: 16px 20px;
+  max-height: 500px;
   overflow-y: auto;
+  flex: 1;
+}
+
+/* 自定义滚动条 */
+.file-list-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.file-list-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.file-list-content::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.file-list-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 
 /* 空状态 */
@@ -4010,13 +4044,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100px;
-  padding: 20px;
+  min-height: 120px;
+  padding: 40px 20px;
   height: 100%;
 }
 
 .file-list-empty p {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
   margin: 0;
 }
@@ -4026,12 +4060,13 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 10px 16px;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   margin-bottom: 8px;
   transition: all 0.2s ease;
+  min-height: 64px;
 }
 
 .file-item-card:hover {
@@ -4050,14 +4085,15 @@ body {
   gap: 12px;
   flex: 1;
   min-width: 0;
+  max-width: 60%;
 }
 
 .file-icon-circle {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
   background: var(--primary-soft);
-  border: 2px solid var(--border-color);
+  border: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4079,16 +4115,17 @@ body {
 }
 
 .file-type-text {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   color: var(--primary-color);
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .loading-ring {
   position: absolute;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border: 2px solid transparent;
   border-top-color: var(--primary-color);
   border-radius: 50%;
@@ -4104,55 +4141,77 @@ body {
 .file-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .file-name {
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-primary);
-  margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.4;
 }
 
 .file-size {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 .file-item-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .status-btn {
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 4px;
+  padding: 5px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
   text-decoration: none;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  min-width: 70px;
 }
 
 .status-btn.finish {
   background: #10b981;
   color: white;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
 }
 
 .status-btn.finish:hover {
   background: #059669;
+  box-shadow: 0 3px 6px rgba(16, 185, 129, 0.3);
+  transform: translateY(-1px);
 }
 
 .status-btn.error {
   background: #ef4444;
   color: white;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+}
+
+.status-btn.error:hover {
+  background: #dc2626;
 }
 
 .status-btn.converting {
   background: #f59e0b;
   color: white;
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
+  animation: pulse 2s ease-in-out infinite;
 }
 
 .btn-delete {
@@ -4160,8 +4219,8 @@ body {
   height: 32px;
   padding: 0;
   background: transparent;
-  border: none;
-  border-radius: 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -4171,8 +4230,14 @@ body {
 }
 
 .btn-delete:hover {
-  background: var(--hover-bg);
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
   color: #ef4444;
+  transform: scale(1.05);
+}
+
+.btn-delete:active {
+  transform: scale(0.95);
 }
 
 .btn-delete svg {
@@ -4180,3 +4245,400 @@ body {
   height: 18px;
 }
 
+
+
+/* ========================================
+   深色主题优化 - 统一深色风格
+   ======================================== */
+
+[data-theme='dark'] input[type="text"],
+[data-theme='dark'] input[type="number"],
+[data-theme='dark'] input[type="email"],
+[data-theme='dark'] input[type="password"],
+[data-theme='dark'] textarea,
+[data-theme='dark'] select,
+[data-theme='dark'] .custom-theme-select {
+  background-color: #334155 !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+}
+
+[data-theme='dark'] input[type="text"]:hover,
+[data-theme='dark'] input[type="number"]:hover,
+[data-theme='dark'] input[type="email"]:hover,
+[data-theme='dark'] input[type="password"]:hover,
+[data-theme='dark'] textarea:hover,
+[data-theme='dark'] select:hover,
+[data-theme='dark'] .custom-theme-select:hover {
+  background-color: #3f4b5e !important;
+  border-color: rgba(148, 163, 184, 0.3) !important;
+}
+
+[data-theme='dark'] input[type="text"]:focus,
+[data-theme='dark'] input[type="number"]:focus,
+[data-theme='dark'] input[type="email"]:focus,
+[data-theme='dark'] input[type="password"]:focus,
+[data-theme='dark'] textarea:focus,
+[data-theme='dark'] select:focus,
+[data-theme='dark'] .custom-theme-select:focus {
+  background-color: #3f4b5e !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15) !important;
+}
+
+[data-theme='dark'] input::placeholder,
+[data-theme='dark'] textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* 深色主题下的按钮 */
+[data-theme='dark'] .pos-btn {
+  background-color: #334155;
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .pos-btn:hover {
+  background-color: #3f4b5e;
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+[data-theme='dark'] .pos-btn.active {
+  background-color: rgba(96, 165, 250, 0.15);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* 深色主题下的颜色选择器 */
+[data-theme='dark'] input[type="color"] {
+  background-color: #334155;
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+/* 深色主题下的复选框 */
+[data-theme='dark'] input[type="checkbox"] {
+  background-color: #334155;
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+[data-theme='dark'] input[type="checkbox"]:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+/* 深色主题下的滑块 */
+[data-theme='dark'] input[type="range"] {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+[data-theme='dark'] input[type="range"]::-webkit-slider-thumb {
+  background: var(--primary-color);
+  box-shadow: 0 2px 6px rgba(96, 165, 250, 0.4);
+}
+
+[data-theme='dark'] input[type="range"]::-moz-range-thumb {
+  background: var(--primary-color);
+  box-shadow: 0 2px 6px rgba(96, 165, 250, 0.4);
+}
+
+/* 深色主题下的选项组 */
+[data-theme='dark'] .option-group-header {
+  background-color: transparent;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .option-group-header:hover {
+  background-color: rgba(148, 163, 184, 0.05);
+}
+
+[data-theme='dark'] .option-group-content {
+  background-color: transparent;
+}
+
+/* 深色主题下的标签 */
+[data-theme='dark'] .checkbox-label:hover {
+  background-color: rgba(148, 163, 184, 0.05);
+}
+
+[data-theme='dark'] .pdf-specific-options .checkbox-label:hover {
+  background-color: rgba(148, 163, 184, 0.05);
+}
+
+/* 深色主题下的自定义选择框图标 */
+[data-theme='dark'] .custom-select-icon {
+  color: #94a3b8;
+}
+
+/* 深色主题下的值标签 */
+[data-theme='dark'] .value-label-center {
+  color: #94a3b8;
+}
+
+/* 深色主题下的子选项 */
+[data-theme='dark'] .sub-option label {
+  color: #cbd5e1;
+}
+
+/* 深色主题下的文件列表 */
+[data-theme='dark'] .file-list-empty {
+  color: #64748b;
+}
+
+/* 深色主题下的按钮 */
+[data-theme='dark'] .select-file-btn {
+  background-color: var(--primary-color);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
+}
+
+[data-theme='dark'] .select-file-btn:hover {
+  background-color: var(--primary-dark);
+  box-shadow: 0 6px 16px rgba(96, 165, 250, 0.4);
+}
+
+/* 深色主题下的文件操作按钮 */
+[data-theme='dark'] .file-action-btn {
+  background-color: #334155;
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+[data-theme='dark'] .file-action-btn:hover:not(:disabled) {
+  background-color: #3f4b5e;
+  color: #e2e8f0;
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+[data-theme='dark'] .file-action-btn-primary {
+  background-color: var(--primary-color);
+  color: #ffffff;
+  border-color: var(--primary-color);
+}
+
+[data-theme='dark'] .file-action-btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+[data-theme='dark'] .file-action-btn:disabled {
+  background-color: #1e293b;
+  color: #475569;
+  border-color: rgba(148, 163, 184, 0.1);
+}
+
+/* 深色主题下的上传区域 */
+[data-theme='dark'] .upload-area {
+  background-color: #1e293b;
+  border-color: rgba(148, 163, 184, 0.15);
+}
+
+[data-theme='dark'] .upload-area:hover {
+  background-color: #263548;
+  border-color: var(--primary-color);
+}
+
+[data-theme='dark'] .upload-area.dragging {
+  background-color: rgba(96, 165, 250, 0.1);
+  border-color: var(--primary-color);
+}
+
+/* 深色主题下的模态框 */
+[data-theme='dark'] .modal-overlay {
+  background-color: rgba(15, 23, 42, 0.8);
+}
+
+[data-theme='dark'] .download-modal,
+[data-theme='dark'] .preview-modal {
+  background-color: #1e293b;
+  border-color: rgba(148, 163, 184, 0.15);
+}
+
+[data-theme='dark'] .download-modal-header,
+[data-theme='dark'] .preview-modal-header {
+  background-color: #1e293b;
+  border-bottom-color: rgba(148, 163, 184, 0.15);
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .download-option-btn {
+  background-color: #334155;
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+[data-theme='dark'] .download-option-btn:hover {
+  background-color: #3f4b5e;
+  border-color: var(--primary-color);
+}
+
+[data-theme='dark'] .download-option-text h4 {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .download-option-text p {
+  color: #94a3b8;
+}
+
+/* 深色主题下的预览按钮 */
+[data-theme='dark'] .preview-html-btn {
+  background-color: #334155;
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+[data-theme='dark'] .preview-html-btn:hover {
+  background-color: #3f4b5e;
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+
+/* ========================================
+   性能优化 - GPU加速和动画优化
+   ======================================== */
+
+/* 启用GPU加速 */
+.tool-card,
+.sidebar-item,
+.file-item-card,
+.upload-area,
+.config-box-wrapper,
+.pos-btn,
+.file-action-btn,
+.download-option-btn {
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* 优化过渡动画 */
+.tool-card,
+.sidebar-item,
+.file-item-card {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 减少重绘 */
+.tool-card:hover,
+.sidebar-item:hover {
+  transform: translateY(-2px) translateZ(0);
+}
+
+/* 优化滚动性能 */
+.content-area,
+.sidebar,
+.config-box-wrapper,
+.file-list-body {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* 减少布局抖动 */
+.card-grid {
+  contain: layout style paint;
+}
+
+.file-list-content {
+  contain: layout style;
+}
+
+/* 优化输入框性能 */
+input,
+textarea,
+select {
+  will-change: auto;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  will-change: border-color, box-shadow;
+}
+
+/* 优化模态框动画 */
+.modal-overlay {
+  will-change: opacity;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.download-modal,
+.preview-modal {
+  will-change: transform, opacity;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 减少不必要的动画 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 优化大列表渲染 */
+.file-list-content {
+  content-visibility: auto;
+}
+
+.file-item-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 80px;
+}
+
+/* 优化图片加载 */
+img {
+  content-visibility: auto;
+}
+
+
+/* ========================================
+   主题切换优化 - 极致性能版
+   ======================================== */
+
+/* 优化主题切换性能 */
+:root {
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+/* 完全禁用主题切换时的过渡效果，实现即时切换 */
+* {
+  transition: none !important;
+}
+
+/* 只为交互元素保留必要的过渡 */
+.tool-card:hover,
+.sidebar-item:hover,
+.file-item-card:hover,
+button:hover,
+a:hover {
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 优化深色主题下的渲染性能 */
+[data-theme='dark'] {
+  /* 使用硬件加速 */
+  transform: translateZ(0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  
+  /* 强制使用 GPU 合成 */
+  will-change: auto;
+}
+
+/* 优化 CSS 变量的应用 */
+:root,
+[data-theme='dark'] {
+  /* 使用 contain 隔离样式计算 */
+  contain: style;
+}

@@ -60,6 +60,20 @@ class PdfToPptConverter(BaseConverter):
             slide_width = options.get('slide_width', 10)  # 英寸
             slide_height = options.get('slide_height', 7.5)  # 英寸
             
+            # 解析页面范围
+            import fitz
+            with fitz.open(input_path) as doc:
+                total_pages = doc.page_count
+                
+            raw_page_range = options.get('pdf_page_range') or options.get('page_range')
+            pages = self.parse_page_range(raw_page_range, total_pages=total_pages)
+            
+            # 确定要处理的页面
+            if pages is None:
+                pages_to_process = range(total_pages)
+            else:
+                pages_to_process = pages
+            
             # 质量设置
             quality_map = {
                 'ultra': 3.0,  # 3x 缩放
@@ -77,6 +91,7 @@ class PdfToPptConverter(BaseConverter):
             if pymupdf_available:
                 result = self._convert_with_pymupdf(
                     input_path, output_path, prs, 
+                    pages=pages_to_process,
                     scale_factor=scale_factor
                 )
                 return result
@@ -85,7 +100,8 @@ class PdfToPptConverter(BaseConverter):
                 print("[PDF转PPT] 使用 pdfplumber 降级方案（仅文本）")
                 self.update_progress(input_path, 20)
                 result = self._convert_with_pdfplumber(
-                    input_path, output_path, prs
+                    input_path, output_path, prs,
+                    pages=pages_to_process
                 )
                 result['method'] = 'pdfplumber_fallback'
                 result['warning'] = 'PyMuPDF not available, used text-only conversion'
@@ -96,7 +112,7 @@ class PdfToPptConverter(BaseConverter):
             raise Exception(f"PDF to PPT conversion failed: {str(e)}")
     
     def _convert_with_pymupdf(self, input_path: str, output_path: str, 
-                              prs, scale_factor: float = 2.0) -> Dict[str, Any]:
+                              prs, pages=None, scale_factor: float = 2.0) -> Dict[str, Any]:
         """使用 PyMuPDF 转换（主策略 - 高质量图片模式）"""
         import fitz
         from pptx.util import Inches, Emu
@@ -108,9 +124,21 @@ class PdfToPptConverter(BaseConverter):
             doc.close()
             raise Exception("PDF 文件为空，没有可转换的页面")
         
+        # 确定要处理的页面
+        if pages is None:
+            pages_to_process = range(total_pages)
+        else:
+            pages_to_process = pages
+            
         self.update_progress(input_path, 25)
         
-        for page_idx in range(total_pages):
+        processed_count = 0
+        total_to_process = len(pages_to_process)
+        
+        for page_idx in pages_to_process:
+            if page_idx < 0 or page_idx >= total_pages:
+                continue
+                
             page = doc[page_idx]
             
             # 创建新幻灯片（空白布局）
@@ -170,7 +198,8 @@ class PdfToPptConverter(BaseConverter):
                     pass
             
             # 更新进度 (25% ~ 90%)
-            progress = 25 + int(((page_idx + 1) / total_pages) * 65)
+            processed_count += 1
+            progress = 25 + int((processed_count / total_to_process) * 65)
             self.update_progress(input_path, progress)
         
         doc.close()
@@ -196,7 +225,7 @@ class PdfToPptConverter(BaseConverter):
         }
     
     def _convert_with_pdfplumber(self, input_path: str, output_path: str, 
-                                 prs) -> Dict[str, Any]:
+                                 prs, pages=None) -> Dict[str, Any]:
         """使用 pdfplumber 转换（降级方案 - 文本模式）"""
         import pdfplumber
         from pptx.util import Inches, Pt
@@ -206,9 +235,24 @@ class PdfToPptConverter(BaseConverter):
                 raise Exception("PDF 文件为空，没有可转换的页面")
             
             total_pages = len(pdf.pages)
+            
+            # 确定要处理的页面
+            if pages is None:
+                pages_to_process = range(total_pages)
+            else:
+                pages_to_process = pages
+            
             self.update_progress(input_path, 30)
             
-            for page_idx, page in enumerate(pdf.pages, 1):
+            processed_count = 0
+            total_to_process = len(pages_to_process)
+            
+            for page_idx in pages_to_process:
+                if page_idx < 0 or page_idx >= total_pages:
+                    continue
+                
+                page = pdf.pages[page_idx]
+                
                 # 创建新幻灯片（空白布局）
                 slide_layout = prs.slide_layouts[6]
                 slide = prs.slides.add_slide(slide_layout)
@@ -244,7 +288,8 @@ class PdfToPptConverter(BaseConverter):
                     p.font.size = font_size
                 
                 # 更新进度 (30% ~ 90%)
-                progress = 30 + int((page_idx / total_pages) * 60)
+                processed_count += 1
+                progress = 30 + int((processed_count / total_to_process) * 60)
                 self.update_progress(input_path, progress)
         
         # 确保至少有一张幻灯片

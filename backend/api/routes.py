@@ -117,6 +117,7 @@ async def convert_general(
     encoding: Optional[str] = Form('utf-8'),
     # HTML 选项
     enable_preview: Optional[bool] = Form(False),
+    code_mode: Optional[bool] = Form(False),  # 新增：代码模式
     css_handling: Optional[str] = Form(None),
     compress_css: Optional[bool] = Form(False),
     custom_css: Optional[str] = Form(None),
@@ -140,6 +141,7 @@ async def convert_general(
     csv_delimiter: Optional[str] = Form(None),
     # PDF 页面选择
     pdf_page_selection: Optional[str] = Form(None),
+    pdf_page_range: Optional[str] = Form(None),
     # GIF 动画选项
     animation_delay: Optional[int] = Form(100),
     loop_animation: Optional[bool] = Form(True)
@@ -169,6 +171,7 @@ async def convert_general(
         options = {
             'encoding': encoding,
             'enable_preview': enable_preview,
+            'code_mode': code_mode,  # 新增
             'css_handling': css_handling,
             'compress_css': compress_css,
             'custom_css': custom_css,
@@ -188,6 +191,7 @@ async def convert_general(
             'watermark_position': watermark_position,
             'csv_delimiter': csv_delimiter,
             'pdf_page_selection': pdf_page_selection,
+            'pdf_page_range': pdf_page_range,
             'animation_delay': animation_delay,
             'loop_animation': loop_animation
         }
