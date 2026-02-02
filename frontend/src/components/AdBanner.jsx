@@ -105,13 +105,11 @@ const AdBanner = ({
     const handleAdClick = () => {
         const currentAd = ads[currentIndex];
         if (currentAd && currentAd.target_url) {
-            // Priority: External Browser via Electron Shell
-            // eslint-disable-next-line no-undef
-            const electron = window.require ? window.require('electron') : null;
-            if (electron && electron.shell) {
-                electron.shell.openExternal(currentAd.target_url);
+            // 使用 Electron API 在外部浏览器打开
+            if (window.electronAPI && window.electronAPI.openExternal) {
+                window.electronAPI.openExternal(currentAd.target_url);
             } else {
-                // Fallback: Internal Browser / Default window.open
+                // Fallback: 浏览器环境
                 window.open(currentAd.target_url, '_blank');
             }
         }

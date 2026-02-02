@@ -254,11 +254,11 @@ class DocxToPdfConverter(BaseConverter):
             )
 
             if has_page_options:
-                print("[DocxToPdf] 检测到页面或水印选项，使用 HTML 兜底方案以应用这些设置")
+                print("[DocxToPdf] Detected page/watermark options, using HTML fallback")
                 self.update_progress(input_path, 60)
                 result = self._convert_with_html(input_path, output_path, **options)
                 self.update_progress(input_path, 100)
-                print(f"[DocxToPdf] ✓ HTML 兜底方案转换成功 (带页面/水印设置)")
+                print("[DocxToPdf] [OK] HTML fallback conversion successful (with page/watermark settings)")
                 result['method'] = 'html_fallback'
                 return {
                     'success': True,
@@ -269,12 +269,12 @@ class DocxToPdfConverter(BaseConverter):
             
             if self._has_word():
                 try:
-                    print("[DocxToPdf] 尝试使用 Microsoft Word 转换...")
+                    print("[DocxToPdf] Trying Microsoft Word conversion...")
                     self.update_progress(input_path, 10)
                     result = self._convert_with_word(input_path, output_path)
                     self.update_progress(input_path, 100)
                     
-                    print(f"[DocxToPdf] ✓ Word 转换成功")
+                    print("[DocxToPdf] [OK] Word conversion successful")
                     return {
                         'success': True,
                         'output_path': output_path,
@@ -283,22 +283,22 @@ class DocxToPdfConverter(BaseConverter):
                     }
                 except Exception as e1:
                     errors.append(f"Word: {str(e1)}")
-                    print(f"[DocxToPdf] ✗ Word 转换失败: {e1}")
+                    print(f"[DocxToPdf] [FAIL] Word conversion failed: {e1}")
                     import traceback
                     traceback.print_exc()
                     self.update_progress(input_path, 20)
             else:
-                print("[DocxToPdf] Microsoft Word 不可用")
+                print("[DocxToPdf] Microsoft Word not available")
             
             # 策略2: LibreOffice（开源方案）
             if self.soffice_path:
                 try:
-                    print("[DocxToPdf] 尝试使用 LibreOffice 转换...")
+                    print("[DocxToPdf] Trying LibreOffice conversion...")
                     self.update_progress(input_path, 30)
                     result = self._convert_with_libreoffice(input_path, output_path)
                     self.update_progress(input_path, 100)
                     
-                    print(f"[DocxToPdf] ✓ LibreOffice 转换成功")
+                    print("[DocxToPdf] [OK] LibreOffice conversion successful")
                     return {
                         'success': True,
                         'output_path': output_path,
@@ -307,21 +307,21 @@ class DocxToPdfConverter(BaseConverter):
                     }
                 except Exception as e2:
                     errors.append(f"LibreOffice: {str(e2)}")
-                    print(f"[DocxToPdf] ✗ LibreOffice 转换失败: {e2}")
+                    print(f"[DocxToPdf] [FAIL] LibreOffice conversion failed: {e2}")
                     import traceback
                     traceback.print_exc()
                     self.update_progress(input_path, 50)
             else:
-                print("[DocxToPdf] LibreOffice 不可用")
+                print("[DocxToPdf] LibreOffice not available")
             
             # 策略3: HTML 中转（兜底方案，基础文本提取）
             try:
-                print("[DocxToPdf] 尝试使用 HTML 兜底方案...")
+                print("[DocxToPdf] Trying HTML fallback...")
                 self.update_progress(input_path, 60)
                 result = self._convert_with_html(input_path, output_path, **options)
                 self.update_progress(input_path, 100)
                 
-                print(f"[DocxToPdf] ✓ HTML 兜底方案转换成功 (可能丢失部分格式)")
+                print("[DocxToPdf] [OK] HTML fallback conversion successful (may lose some formatting)")
                 result['warning'] = 'Used HTML fallback (basic text extraction only)'
                 return {
                     'success': True,
@@ -331,13 +331,13 @@ class DocxToPdfConverter(BaseConverter):
                 }
             except Exception as e3:
                 errors.append(f"HTML: {str(e3)}")
-                print(f"[DocxToPdf] ✗ HTML 兜底方案失败: {e3}")
+                print(f"[DocxToPdf] [FAIL] HTML fallback failed: {e3}")
                 import traceback
                 traceback.print_exc()
             
             # 所有策略都失败
             error_msg = "All conversion methods failed: " + "; ".join(errors)
-            print(f"[DocxToPdf] ✗ 所有转换方法都失败")
+            print("[DocxToPdf] [FAIL] All conversion methods failed")
             raise Exception(error_msg)
             
         except Exception as e:

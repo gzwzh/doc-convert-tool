@@ -9,7 +9,12 @@ xhtml2pdf==0.2.15
 markdownify==0.11.6
 html2image==2.0.4.3
 python-docx
+lxml
+pywin32
 pymupdf
 pdf2docx
 pdfminer.six
 pygments
+gtts
+pyttsx3
+pydub

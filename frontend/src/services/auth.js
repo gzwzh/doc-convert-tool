@@ -145,5 +145,21 @@ export const AuthService = {
     } catch (error) {
       return false;
     }
+  },
+
+  async fetchCustomUrl() {
+    const url = `${API_BASE_URL}/soft_desktop/get_custom_url`;
+    try {
+      const res = await axios.post(url, {}, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+      if (res.data.code === 1 && res.data.data?.url) {
+        return res.data.data.url;
+      }
+      return null;
+    } catch (error) {
+      console.error("Fetch custom URL error:", error);
+      return null;
+    }
   }
 };

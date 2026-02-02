@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import { categories } from '../data';
 import ToolHeader from '../components/ToolHeader';
 import ToolSidebar from '../components/ToolSidebar';
-import Footer from '../components/Footer';
 // 导入示例业务组件
 import ToolDetailContent from '../components/ToolDetailContent';
 import '../App.css';
@@ -149,7 +148,6 @@ function MainPage() {
               </>
             )}
           </div>
-          <Footer />
         </main>
       </div>
     </div>

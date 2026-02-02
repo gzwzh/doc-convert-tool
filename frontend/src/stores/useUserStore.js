@@ -3,9 +3,6 @@ import { persist } from 'zustand/middleware';
 import { message } from 'antd';
 import { AuthService } from '../services/auth';
 
-// @ts-ignore
-const electron = window.require ? window.require('electron') : null;
-
 export const useUserStore = create(
     persist(
         (set, get) => ({
@@ -34,9 +31,9 @@ export const useUserStore = create(
 
                     set({ isPolling: true, loginUrl: url, encodedNonce });
 
-                    // Open Browser
-                    if (electron && electron.shell) {
-                        electron.shell.openExternal(url);
+                    // Open Browser - 使用 Electron API 在外部浏览器打开
+                    if (window.electronAPI && window.electronAPI.openExternal) {
+                        await window.electronAPI.openExternal(url);
                     } else {
                         window.open(url, '_blank');
                     }

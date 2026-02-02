@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import AdBanner from './AdBanner';
+import SoftwareCustomization from './SoftwareCustomization';
 import '../App.css';
 
 function ToolSidebar({ sections, activeSection, onSectionClick, onToolClick }) {
@@ -116,6 +117,8 @@ function ToolSidebar({ sections, activeSection, onSectionClick, onToolClick }) {
           </div>
         ))}
       </div>
+      
+      <SoftwareCustomization />
       
       <AdBanner
           positions={['adv_position_04', 'adv_position_05']}

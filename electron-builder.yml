@@ -1,8 +1,11 @@
 appId: com.converttool.app
-productName: ConvertTool
+productName: 文档转换器
 directories:
   output: release/${version}
   buildResources: build
+extraResources:
+  - from: backend/dist
+    to: backend/dist
 files:
   - from: .
     filter:
@@ -13,6 +16,7 @@ files:
     filter:
       - "**/*"
 win:
+  icon: frontend/public/app.ico
   target:
     - target: nsis
       arch:
@@ -25,6 +29,12 @@ nsis:
   perMachine: true
   allowToChangeInstallationDirectory: true
   unicode: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: 文档转换器
+  allowElevation: true
+  runAfterFinish: false
+  include: build/installer.nsh
   artifactName: installer/${productName}-Setup-${version}.${ext}
 portable:
   artifactName: portable/${productName}-Portable-${version}.${ext}

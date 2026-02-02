@@ -227,11 +227,6 @@ export const categories = {
           description: 'Convert PDF to GIF'
         },
         {
-          name: 'PDF To PSD',
-          icon: FilePdfOutlined,
-          description: 'Convert PDF to PSD'
-        },
-        {
           name: 'PDF To RTF',
           icon: FilePdfOutlined,
           description: 'Convert PDF to RTF'

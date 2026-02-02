@@ -35,4 +35,9 @@ if __name__ == "__main__":
             print(f"Route: {route.path} {route.methods}")
         else:
             print(f"Route: {route.path} (Mount)")
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=8002, reload=True)
+    is_frozen = getattr(sys, "frozen", False)
+    port = int(os.environ.get("BACKEND_PORT", "8002"))
+    if is_frozen:
+        uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
+    else:
+        uvicorn.run("backend.main:app", host="0.0.0.0", port=port, reload=True)

@@ -51,11 +51,22 @@ from backend.converters.json_to_svg import JsonToSvgConverter
 from backend.converters.xml_to_image import XmlToImageConverter
 from backend.converters.xml_to_svg import XmlToSvgConverter
 from backend.converters.pdf_to_rtf import PdfToRtfConverter
-from backend.converters.pdf_to_psd import PdfToPsdConverter
+# from backend.converters.pdf_to_psd import PdfToPsdConverter  # 已移除：缺少psd_tools依赖
 
 # 配置常量（后续可移至 config.py）
-UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
-DOWNLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "downloads"))
+import sys
+
+# 判断是否在打包环境中
+if getattr(sys, 'frozen', False):
+    # 打包后，使用用户目录
+    import tempfile
+    base_dir = os.path.join(tempfile.gettempdir(), 'doc-converter')
+    UPLOAD_DIR = os.path.join(base_dir, 'uploads')
+    DOWNLOAD_DIR = os.path.join(base_dir, 'downloads')
+else:
+    # 开发环境，使用项目目录
+    UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
+    DOWNLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "downloads"))
 
 # 确保目录存在
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -134,7 +145,7 @@ class ConverterService:
             ('pdf', 'pptx'): PdfToPptConverter(),
             ('pdf', 'ppt'): PdfToPptConverter(),
             ('pdf', 'rtf'): PdfToRtfConverter(),
-            ('pdf', 'psd'): PdfToPsdConverter(),
+            # ('pdf', 'psd'): PdfToPsdConverter(),  # 已移除：缺少psd_tools依赖
             # TXT 转换
             ('txt', 'pdf'): TxtToPdfConverter(),
             ('txt', 'html'): TxtToHtmlConverter(),
@@ -161,23 +172,28 @@ class ConverterService:
         if converter_key not in self.converters:
             raise ValueError(f"Unsupported conversion: {source_format} to {target_format}")
         
-        # 生成输出路径，保留原始文件名
+        # 生成输出路径，使用优化的文件名策略
         if original_filename:
             # 移除原始扩展名，保留文件名
             base_name = os.path.splitext(original_filename)[0]
-            output_filename = f"{base_name}.{target_format}"
-            output_path = os.path.join(DOWNLOAD_DIR, output_filename)
+            display_name = f"{base_name}.{target_format}"
             
-            # 如果文件已存在，添加数字后缀
+            # 生成短哈希（6位）确保唯一性
+            short_hash = str(uuid.uuid4())[:8]
+            storage_filename = f"{base_name}_{short_hash}.{target_format}"
+            output_path = os.path.join(DOWNLOAD_DIR, storage_filename)
+            
+            # 如果文件已存在（极小概率），添加数字后缀
             counter = 1
             while os.path.exists(output_path):
-                output_filename = f"{base_name}{counter}.{target_format}"
-                output_path = os.path.join(DOWNLOAD_DIR, output_filename)
+                storage_filename = f"{base_name}_{short_hash}_{counter}.{target_format}"
+                output_path = os.path.join(DOWNLOAD_DIR, storage_filename)
                 counter += 1
         else:
             unique_id = str(uuid.uuid4())
-            output_filename = f"{unique_id}.{target_format}"
-            output_path = os.path.join(DOWNLOAD_DIR, output_filename)
+            display_name = f"converted.{target_format}"
+            storage_filename = f"{unique_id}.{target_format}"
+            output_path = os.path.join(DOWNLOAD_DIR, storage_filename)
         
         # 调用具体转换器
         converter = self.converters[converter_key]
@@ -185,16 +201,29 @@ class ConverterService:
         
         # 检查实际输出文件（可能是 ZIP）
         actual_output_path = result.get('output_path', output_path)
-        actual_filename = os.path.basename(actual_output_path)
+        actual_storage_filename = os.path.basename(actual_output_path)
+        
+        # 如果是 ZIP 文件，也需要处理显示名称
+        if actual_storage_filename.endswith('.zip'):
+            # 提取原始基础名，移除哈希部分
+            if original_filename:
+                actual_display_name = f"{base_name}.zip"
+            else:
+                actual_display_name = "converted.zip"
+        else:
+            actual_display_name = display_name
         
         # 补充返回信息
         print(f"[ConverterService] Expected output: {output_path}")
         print(f"[ConverterService] Actual output: {actual_output_path}")
+        print(f"[ConverterService] Storage filename: {actual_storage_filename}")
+        print(f"[ConverterService] Display filename: {actual_display_name}")
         print(f"[ConverterService] File exists: {os.path.exists(actual_output_path)}")
         
         result.update({
-            'filename': actual_filename,
-            'download_url': f"/downloads/{actual_filename}"
+            'filename': actual_storage_filename,  # 后端存储的实际文件名
+            'display_name': actual_display_name,  # 用户看到的文件名
+            'download_url': f"/downloads/{actual_storage_filename}"
         })
         
         return result

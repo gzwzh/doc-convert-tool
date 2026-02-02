@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API_BASE_URL = "https://api-web.kunqiongai.com";
-const SOFT_NUMBER = '10011'; // Example soft_number, configurable
+const SOFT_NUMBER = '10031'; // 软件编号
 
 export const AdService = {
     /**

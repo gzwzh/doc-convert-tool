@@ -442,6 +442,8 @@ body {
   align-items: center;
   justify-content: space-between;
   transition: all 0.2s ease;
+  gap: 8px;
+  min-height: 40px;
 }
 
 .search-result-item:hover {
@@ -451,10 +453,9 @@ body {
 
 .search-result-name {
   font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   flex: 1;
+  min-width: 0;
+  word-break: break-word;
 }
 
 .search-result-match {
@@ -473,8 +474,9 @@ body {
   border-radius: 999px;
   /* 胶囊样式 */
   border: 1px solid var(--border-color);
-  margin-left: 12px;
   flex-shrink: 0;
+  white-space: nowrap;
+}
   font-weight: 500;
 }
 
@@ -596,8 +598,16 @@ body {
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 24px;
+}
+
+/* 响应式调整 - 确保最小窗口时至少显示 2 列 */
+@media (max-width: 1200px) {
+  .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+  }
 }
 
 /* Card Style */
@@ -3815,8 +3825,8 @@ body {
 .download-modal {
   background: white;
   width: 90%;
-  max-width: 500px;
-  border-radius: 16px;
+  max-width: 520px;
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -3825,100 +3835,138 @@ body {
 }
 
 .download-modal-header {
-  padding: 20px 24px;
+  padding: 28px 28px 20px 28px;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: white;
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  position: relative;
 }
 
 .download-modal-header h3 {
   margin: 0;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: #1e293b;
+  letter-spacing: -0.02em;
 }
 
 .modal-close-btn {
   background: transparent;
   border: none;
-  color: #64748b;
+  color: #94a3b8;
   cursor: pointer;
-  padding: 8px;
+  padding: 0;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
+  position: absolute;
+  right: 24px;
+  top: 24px;
+  flex-shrink: 0;
 }
 
 .modal-close-btn:hover {
-  background: #f1f5f9;
+  background: #fee2e2;
   color: #ef4444;
+  transform: rotate(90deg);
+}
+
+.modal-close-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .download-modal-content {
-  padding: 24px;
+  padding: 28px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+  background: white;
 }
 
 .download-option-btn {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
+  gap: 18px;
+  padding: 22px 20px;
   background: white;
   border: 2px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 14px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+
+.download-option-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.download-option-btn:hover::before {
+  opacity: 1;
 }
 
 .download-option-btn:hover {
   border-color: #00a3ff;
-  background: #f0f9ff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 163, 255, 0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 163, 255, 0.2);
 }
 
 .download-option-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  background: #f0f9ff;
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #00a3ff;
   flex-shrink: 0;
-  transition: all 0.2s;
+  transition: all 0.25s;
+  position: relative;
+  z-index: 1;
 }
 
 .download-option-btn:hover .download-option-icon {
-  background: #00a3ff;
+  background: linear-gradient(135deg, #00a3ff 0%, #0284c7 100%);
   color: white;
+  transform: scale(1.05);
 }
 
 .download-option-text {
   flex: 1;
+  position: relative;
+  z-index: 1;
 }
 
 .download-option-text h4 {
-  margin: 0 0 4px 0;
-  font-size: 16px;
+  margin: 0 0 6px 0;
+  font-size: 17px;
   font-weight: 600;
   color: #1e293b;
+  letter-spacing: -0.01em;
 }
 
 .download-option-text p {
   margin: 0;
   font-size: 13px;
   color: #64748b;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 
@@ -4455,9 +4503,26 @@ body {
 
 [data-theme='dark'] .download-modal-header,
 [data-theme='dark'] .preview-modal-header {
-  background-color: #1e293b;
+  background: linear-gradient(135deg, #1e293b 0%, #1a2332 100%);
   border-bottom-color: rgba(148, 163, 184, 0.15);
+}
+
+[data-theme='dark'] .download-modal-header h3,
+[data-theme='dark'] .preview-modal-header h3 {
   color: #e2e8f0;
+}
+
+[data-theme='dark'] .modal-close-btn {
+  color: #64748b;
+}
+
+[data-theme='dark'] .modal-close-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+[data-theme='dark'] .download-modal-content {
+  background-color: #1e293b;
 }
 
 [data-theme='dark'] .download-option-btn {
@@ -4465,9 +4530,23 @@ body {
   border-color: rgba(148, 163, 184, 0.2);
 }
 
+[data-theme='dark'] .download-option-btn::before {
+  background: linear-gradient(135deg, rgba(0, 163, 255, 0.1) 0%, rgba(2, 132, 199, 0.1) 100%);
+}
+
 [data-theme='dark'] .download-option-btn:hover {
-  background-color: #3f4b5e;
+  background-color: #334155;
   border-color: var(--primary-color);
+}
+
+[data-theme='dark'] .download-option-icon {
+  background: linear-gradient(135deg, rgba(0, 163, 255, 0.15) 0%, rgba(2, 132, 199, 0.15) 100%);
+  color: #38bdf8;
+}
+
+[data-theme='dark'] .download-option-btn:hover .download-option-icon {
+  background: linear-gradient(135deg, #00a3ff 0%, #0284c7 100%);
+  color: white;
 }
 
 [data-theme='dark'] .download-option-text h4 {
@@ -4640,4 +4719,45 @@ a:hover {
 [data-theme='dark'] {
   /* 使用 contain 隔离样式计算 */
   contain: style;
+}
+
+
+/* ========================================
+   响应式布局优化 - 确保最小窗口时内容正常显示
+   ======================================== */
+
+/* 最小窗口尺寸适配 (1125x740) */
+@media (max-width: 1200px) {
+  .content-wrapper {
+    padding: 20px 32px;
+  }
+  
+  .sidebar {
+    width: 240px;
+    padding: 24px 16px 16px 16px;
+  }
+  
+  .section-title {
+    font-size: 22px;
+  }
+  
+  .tool-card {
+    padding: 24px;
+  }
+}
+
+/* 确保内容区域在不同尺寸下都能正常滚动 */
+.main-layout {
+  min-height: 0; /* 允许 flex 子项收缩 */
+}
+
+.content-area {
+  min-height: 0; /* 允许 flex 子项收缩 */
+  display: flex;
+  flex-direction: column;
+}
+
+/* 确保 Footer 始终在底部 */
+.app-footer {
+  flex-shrink: 0;
 }

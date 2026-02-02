@@ -1,9 +1,13 @@
 .app-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   width: 100%;
-  padding: 20px 0;
+  padding: 16px 0;
   background: var(--card-bg);
   border-top: 1px solid var(--border-color);
-  margin-top: auto;
+  z-index: 10;
 }
 
 .footer-content {

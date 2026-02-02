@@ -1,5 +1,67 @@
 // frontend/src/services/api.js
-const API_BASE_URL = 'http://127.0.0.1:8002';
+let cachedApiBaseUrl = null;
+const fallbackBaseUrl = import.meta?.env?.VITE_API_BASE_URL || 'http://127.0.0.1:8002';
+
+const resolveApiBaseUrl = async () => {
+  if (cachedApiBaseUrl) {
+    console.log('[API] Using cached base URL:', cachedApiBaseUrl);
+    return cachedApiBaseUrl;
+  }
+  
+  if (window?.electronAPI?.getBackendBaseUrl) {
+    try {
+      console.log('[API] Requesting backend URL from Electron...');
+      const url = await window.electronAPI.getBackendBaseUrl();
+      if (url) {
+        console.log('[API] Got backend URL from Electron:', url);
+        cachedApiBaseUrl = url;
+        return cachedApiBaseUrl;
+      }
+    } catch (error) {
+      console.error('[API] Failed to get backend URL from Electron:', error);
+      cachedApiBaseUrl = fallbackBaseUrl;
+      return cachedApiBaseUrl;
+    }
+  }
+  
+  console.log('[API] Using fallback base URL:', fallbackBaseUrl);
+  cachedApiBaseUrl = fallbackBaseUrl;
+  return cachedApiBaseUrl;
+};
+
+export const getApiBaseUrl = async () => resolveApiBaseUrl();
+
+let backendReadyPromise = null;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const ensureBackendReady = async (baseUrl) => {
+  if (backendReadyPromise) return backendReadyPromise;
+  backendReadyPromise = (async () => {
+    console.log('[API] Checking backend health at:', baseUrl);
+    const maxAttempts = 20;
+    const delayMs = 300;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        console.log(`[API] Health check attempt ${attempt + 1}/${maxAttempts}...`);
+        const response = await fetch(`${baseUrl}/api/health`, { method: 'GET' });
+        if (response.ok) {
+          console.log('[API] Backend is ready!');
+          return true;
+        }
+        console.log('[API] Backend responded but not OK:', response.status);
+      } catch (error) {
+        console.log('[API] Health check failed:', error.message);
+        await sleep(delayMs);
+      }
+    }
+    console.error('[API] Backend failed to become ready after', maxAttempts, 'attempts');
+    return false;
+  })();
+  const ready = await backendReadyPromise;
+  if (!ready) backendReadyPromise = null;
+  return ready;
+};
 
 /**
  * 转换 JSON 文件
@@ -18,7 +80,12 @@ export const convertJSON = async (file, targetFormat, options = {}) => {
     if (options.indent) formData.append('indent', options.indent);
     if (options.sortKeys) formData.append('sort_keys', options.sortKeys);
 
-    const response = await fetch(`${API_BASE_URL}/api/convert/json`, {
+    const apiBaseUrl = await getApiBaseUrl();
+    const ready = await ensureBackendReady(apiBaseUrl);
+    if (!ready) {
+      throw new Error('后端服务未启动');
+    }
+    const response = await fetch(`${apiBaseUrl}/api/convert/json`, {
       method: 'POST',
       body: formData,
     });
@@ -45,7 +112,12 @@ export const convertXML = async (file, targetFormat, options = {}) => {
     if (options.indent) formData.append('indent', options.indent);
     if (options.sortKeys) formData.append('sort_keys', options.sortKeys);
 
-    const response = await fetch(`${API_BASE_URL}/api/convert/xml`, {
+    const apiBaseUrl = await getApiBaseUrl();
+    const ready = await ensureBackendReady(apiBaseUrl);
+    if (!ready) {
+      throw new Error('后端服务未启动');
+    }
+    const response = await fetch(`${apiBaseUrl}/api/convert/xml`, {
       method: 'POST',
       body: formData,
     });
@@ -107,7 +179,12 @@ export const convertGeneral = async (file, targetFormat, options = {}) => {
     if (options.animationDelay !== undefined) formData.append('animation_delay', options.animationDelay);
     if (options.loopAnimation !== undefined) formData.append('loop_animation', options.loopAnimation);
 
-    const response = await fetch(`${API_BASE_URL}/api/convert/general`, {
+    const apiBaseUrl = await getApiBaseUrl();
+    const ready = await ensureBackendReady(apiBaseUrl);
+    if (!ready) {
+      throw new Error('后端服务未启动');
+    }
+    const response = await fetch(`${apiBaseUrl}/api/convert/general`, {
       method: 'POST',
       body: formData,
     });
@@ -129,7 +206,12 @@ export const convertGeneral = async (file, targetFormat, options = {}) => {
  */
 export const healthCheck = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/health`);
+    const apiBaseUrl = await getApiBaseUrl();
+    const ready = await ensureBackendReady(apiBaseUrl);
+    if (!ready) {
+      throw new Error('后端服务未启动');
+    }
+    const response = await fetch(`${apiBaseUrl}/api/health`);
     return await response.json();
   } catch (error) {
     console.error('Health check error:', error);

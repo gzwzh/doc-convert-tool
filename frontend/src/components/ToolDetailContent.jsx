@@ -1,19 +1,17 @@
-﻿﻿﻿﻿﻿﻿﻿import { useState, useRef, useMemo, useCallback } from 'react';
+﻿﻿﻿﻿﻿﻿﻿﻿import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { motion } from 'framer-motion';
-import { convertJSON, convertXML, convertGeneral } from '../services/api';
+import { convertJSON, convertXML, convertGeneral, getApiBaseUrl } from '../services/api';
 import { categories } from '../data';
-
-const API_BASE_URL = 'http://127.0.0.1:8002';
 
 // 文件类型映射表
 const FILE_TYPE_MAP = {
   'PDF': ['.pdf'],
-  'DOCX': ['.docx', '.doc'],
-  'DOC': ['.docx', '.doc'],
+  'DOCX': ['.docx'],
+  'DOC': ['.docx'],
   'HTML': ['.html', '.htm'],
   'JSON': ['.json'],
   'XML': ['.xml'],
@@ -36,8 +34,7 @@ const FILE_TYPE_MAP = {
   'GIF': ['.gif'],
   'BMP': ['.bmp'],
   'WEBP': ['.webp'],
-  'TIFF': ['.tiff', '.tif'],
-  'PSD': ['.psd']
+  'TIFF': ['.tiff', '.tif']
 };
 
 function ToolDetailContent({ toolName, onBack }) {
@@ -57,6 +54,14 @@ function ToolDetailContent({ toolName, onBack }) {
     css: false,
     cleanup: false
   });
+
+  // 监听 toolName 变化,切换功能时清空文件列表
+  useEffect(() => {
+    setFiles([]);
+    setConversionResults({});
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (folderInputRef.current) folderInputRef.current.value = '';
+  }, [toolName]);
   const [watermarkOptions, setWatermarkOptions] = useState({
     text: '',
     font: 'Arial Bold',
@@ -77,7 +82,6 @@ function ToolDetailContent({ toolName, onBack }) {
     loopAnimation: true,
     speechSpeed: 1.0,
     speechPitch: 1.0,
-    speechLanguage: '中文 (普通话)',
     pageSize: 'A4',
     docxPdfPageRange: '',
     pdfCustomRange: ''
@@ -404,6 +408,7 @@ function ToolDetailContent({ toolName, onBack }) {
     if (downloadableFiles.length === 0) return;
     
     setShowDownloadModal(false);
+    const apiBaseUrl = await getApiBaseUrl();
 
             // 1. Electron Environment: Use IPC
             if (window.electronAPI) {
@@ -421,7 +426,7 @@ function ToolDetailContent({ toolName, onBack }) {
                         console.error('[BatchDownload] Missing download_url in response', res);
                         throw new Error('Invalid conversion result: missing download URL');
                     }
-                    const url = `${API_BASE_URL}${res.download_url}`;
+                    const url = `${apiBaseUrl}${res.download_url}`;
                     console.log(`[BatchDownload] Fetching URL: ${url}`);
                     const response = await fetch(url);
                     if (!response.ok) {
@@ -432,8 +437,8 @@ function ToolDetailContent({ toolName, onBack }) {
                     const blob = await response.blob();
                     const arrayBuffer = await blob.arrayBuffer();
                     
-                    const rawFilename = res.download_url.split('/').pop();
-                    const filename = rawFilename ? decodeURIComponent(rawFilename) : `file-${Date.now()}.dat`;
+                    // 使用 display_name（如果有），否则从 URL 提取
+                    const filename = res.display_name || (res.download_url.split('/').pop() ? decodeURIComponent(res.download_url.split('/').pop()) : `file-${Date.now()}.dat`);
                     
                     // In Electron, we need to construct the full path. 
                     // Since we can't easily use 'path.join' in frontend without more exposure, 
@@ -481,13 +486,13 @@ function ToolDetailContent({ toolName, onBack }) {
         let lastError = null;
         for (const res of downloadableFiles) {
           try {
-            const url = `${API_BASE_URL}${res.download_url}`;
+            const url = `${apiBaseUrl}${res.download_url}`;
             console.log('Downloading from:', url);
             const response = await fetch(url);
             if (!response.ok) throw new Error(`Fetch failed: ${response.status} for ${url}`);
             const blob = await response.blob();
-            const rawFilename = res.download_url.split('/').pop();
-            const filename = rawFilename ? decodeURIComponent(rawFilename) : `file-${Date.now()}.dat`;
+            // 使用 display_name（如果有），否则从 URL 提取
+            const filename = res.display_name || (res.download_url.split('/').pop() ? decodeURIComponent(res.download_url.split('/').pop()) : `file-${Date.now()}.dat`);
             
             console.log('Saving to file:', filename);
             const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
@@ -522,8 +527,9 @@ function ToolDetailContent({ toolName, onBack }) {
     downloadableFiles.forEach((res, index) => {
       setTimeout(() => {
         const link = document.createElement('a');
-        link.href = `${API_BASE_URL}${res.download_url}`;
-        link.download = ''; 
+        link.href = `${apiBaseUrl}${res.download_url}`;
+        // 使用 display_name 作为下载文件名
+        link.download = res.display_name || ''; 
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -552,12 +558,14 @@ function ToolDetailContent({ toolName, onBack }) {
     setShowDownloadModal(false);
     const zip = new JSZip();
     const toastId = toast.loading('正在打包文件...');
+    const apiBaseUrl = await getApiBaseUrl();
     
     try {
       const promises = downloadableFiles.map(async (res) => {
-        const response = await fetch(`${API_BASE_URL}${res.download_url}`);
+        const response = await fetch(`${apiBaseUrl}${res.download_url}`);
         const blob = await response.blob();
-        const filename = res.download_url.split('/').pop() || `file-${Date.now()}.dat`;
+        // 使用 display_name（如果有），否则从 URL 提取
+        const filename = res.display_name || res.download_url.split('/').pop() || `file-${Date.now()}.dat`;
         zip.file(filename, blob);
       });
 
@@ -734,7 +742,7 @@ function ToolDetailContent({ toolName, onBack }) {
             // HTML 转换
             (source === 'HTML' && ['PDF', 'TXT', 'TEXT', 'MARKDOWN', 'MD', 'PNG', 'JPG', 'JPEG', 'DOCX', 'DOC', 'WORD', 'JSON', 'GIF', 'SVG'].includes(target)) ||
             // PDF 转换
-            (source === 'PDF' && ['TXT', 'DOCX', 'DOC', 'HTML', 'PNG', 'JPG', 'JPEG', 'BMP', 'TIFF', 'JSON', 'BASE64', 'MD', 'SVG', 'EPUB', 'GIF', 'WEBP', 'PPT', 'PPTX', 'RTF', 'PSD'].includes(target)) ||
+            (source === 'PDF' && ['TXT', 'DOCX', 'DOC', 'HTML', 'PNG', 'JPG', 'JPEG', 'BMP', 'TIFF', 'JSON', 'BASE64', 'MD', 'SVG', 'EPUB', 'GIF', 'WEBP', 'PPT', 'PPTX', 'RTF'].includes(target)) ||
             // TXT 转换
             (source === 'TXT' && ['PDF', 'HTML', 'PNG', 'JPG', 'JPEG', 'MP3', 'WAV', 'SPEECH', 'ASCII', 'BINARY', 'BIN', 'CSV', 'HEX'].includes(target)) ||
             // JSON 转换
@@ -862,7 +870,6 @@ function ToolDetailContent({ toolName, onBack }) {
               if (target === 'SPEECH' || target === 'MP3' || target === 'WAV') {
                 options.rate = Math.round(convertOptions.speechSpeed * 150);
                 options.volume = 1.0;
-                options.language = convertOptions.speechLanguage;
                 options.pitch = convertOptions.speechPitch;
               }
             }
@@ -1488,31 +1495,7 @@ function ToolDetailContent({ toolName, onBack }) {
                       </div>
                     </div>
 
-                    <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label className="custom-theme-label">语音语言</label>
-                      <div className="custom-select-wrapper" style={{ position: 'relative' }}>
-                        <select 
-                          value={convertOptions.speechLanguage}
-                          onChange={(e) => setConvertOptions({...convertOptions, speechLanguage: e.target.value})}
-                          className="custom-theme-select"
-                        >
-                          <option>英语</option>
-                          <option>中文 (普通话)</option>
-                          <option>西班牙语</option>
-                          <option>法语</option>
-                          <option>德语</option>
-                        </select>
-                        <svg 
-                          width="12" 
-                          height="12" 
-                          viewBox="0 0 16 16" 
-                          fill="currentColor" 
-                          className="custom-select-icon"
-                        >
-                          <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
-                        </svg>
-                      </div>
-                    </div>
+
                   </>
                 )}
                 
