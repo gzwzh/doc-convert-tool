@@ -33,7 +33,9 @@ class DocxToPdfConverter(BaseConverter):
         for path in paths:
             if os.path.exists(path):
                 return path
-        return shutil.which("soffice")
+        
+        # Check system PATH (for Linux/Mac/Windows if added to PATH)
+        return shutil.which("soffice") or shutil.which("libreoffice")
     
     def _has_word(self) -> bool:
         """检查是否有 Microsoft Word"""

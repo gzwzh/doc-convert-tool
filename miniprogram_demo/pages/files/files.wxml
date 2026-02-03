@@ -1,0 +1,30 @@
+<view class="container">
+  <block wx:if="{{fileGroups.length > 0}}">
+    <view class="group" wx:for="{{fileGroups}}" wx:key="title">
+      <view class="group-title">{{item.title}}</view>
+      <view class="file-list">
+        <view class="file-item card" wx:for="{{item.files}}" wx:key="name" wx:for-item="file" hover-class="file-hover">
+          <view class="file-icon-wrapper {{file.type}}">
+            <text class="file-icon-text" wx:if="{{file.type === 'pdf'}}">📄</text>
+            <text class="file-icon-text" wx:elif="{{file.type === 'docx'}}">📝</text>
+            <text class="file-icon-text" wx:elif="{{file.type === 'jpg'}}">🖼️</text>
+            <text class="file-icon-text" wx:else>📁</text>
+          </view>
+          <view class="file-info">
+            <view class="file-name">{{file.name}}</view>
+            <view class="file-meta">{{file.time}} · {{file.type}}</view>
+          </view>
+          <view class="file-action">
+             <text class="action-icon">⋯</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </block>
+  
+  <view class="empty-state" wx:else>
+    <view class="empty-icon">📁</view>
+    <view class="empty-text">暂无文件记录</view>
+    <view class="empty-subtext">转换后的文件将显示在这里</view>
+  </view>
+</view>

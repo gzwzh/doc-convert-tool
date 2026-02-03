@@ -1,0 +1,137 @@
+
+.profile-header-bg {
+  position: relative;
+  margin-bottom: 40rpx;
+}
+
+.profile-card {
+  background: white;
+  border-radius: 32rpx;
+  padding: 40rpx;
+  display: flex;
+  align-items: center;
+  box-shadow: var(--shadow-float);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorative background blur */
+.profile-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 300rpx;
+  height: 300rpx;
+  background: var(--primary-gradient);
+  opacity: 0.1;
+  border-radius: 50%;
+  filter: blur(40px);
+}
+
+.avatar-ring {
+  padding: 6rpx;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.08);
+  margin-right: 32rpx;
+}
+
+.avatar {
+  width: 120rpx;
+  height: 120rpx;
+  background: #F3F4F6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60rpx;
+}
+
+.info {
+  flex: 1;
+  z-index: 1;
+}
+
+.name {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8rpx;
+  letter-spacing: -0.5px;
+}
+
+.id-tag {
+  display: inline-block;
+  font-size: 22rpx;
+  color: var(--primary-color);
+  background: #EFF6FF;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  font-weight: 500;
+}
+
+.edit-btn {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  padding: 12rpx 24rpx;
+  border: 1px solid var(--border-color);
+  border-radius: 30rpx;
+  background: rgba(255,255,255,0.8);
+}
+
+.menu-list {
+  padding: 10rpx 0;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 32rpx 40rpx;
+  position: relative;
+}
+
+.menu-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 140rpx;
+  right: 40rpx;
+  height: 1px;
+  background: #F3F4F6;
+}
+
+.menu-hover {
+  background-color: #F9FAFB;
+}
+
+.menu-icon-box {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  margin-right: 32rpx;
+}
+
+.menu-text {
+  flex: 1;
+  font-size: 32rpx;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.menu-arrow {
+  color: #D1D5DB;
+  font-size: 28rpx;
+  font-weight: bold;
+}
+
+.footer-version {
+  text-align: center;
+  margin-top: 60rpx;
+  color: var(--text-tertiary);
+  font-size: 24rpx;
+}

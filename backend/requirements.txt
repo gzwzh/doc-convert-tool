@@ -10,7 +10,7 @@ markdownify==0.11.6
 html2image==2.0.4.3
 python-docx
 lxml
-pywin32
+pywin32; sys_platform == 'win32'
 pymupdf
 pdf2docx
 pdfminer.six

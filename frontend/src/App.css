@@ -476,7 +476,6 @@ body {
   border: 1px solid var(--border-color);
   flex-shrink: 0;
   white-space: nowrap;
-}
   font-weight: 500;
 }
 

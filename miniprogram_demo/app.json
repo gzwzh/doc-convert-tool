@@ -1,0 +1,40 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/files/files",
+    "pages/profile/profile",
+    "pages/category/category",
+    "pages/convert/convert"
+  ],
+  "tabBar": {
+    "custom": true,
+    "color": "#64748B",
+    "selectedColor": "#2563EB",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/convert/convert",
+        "text": "转换"
+      },
+      {
+        "pagePath": "pages/files/files",
+        "text": "我的文件"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的"
+      }
+    ]
+  },
+  "window": {
+    "navigationBarTitleText": "格式转换助手",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black"
+  },
+  "sitemapLocation": "sitemap.json"
+}

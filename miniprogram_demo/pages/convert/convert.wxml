@@ -1,0 +1,72 @@
+<view class="container">
+  <!-- 1. Header Title Area -->
+  <view class="page-header">
+    <picker mode="multiSelector" bindchange="onPickerChange" bindcolumnchange="onPickerColumnChange" value="{{multiIndex}}" range="{{multiArray}}">
+      <view class="header-tag">
+        <text>{{sourceFormat}} ➜ {{targetFormat}}</text>
+        <text class="tag-arrow">▼</text>
+      </view>
+    </picker>
+    <view class="header-title">{{title}}</view>
+    <view class="header-desc">简单、快速、安全的格式转换工具</view>
+  </view>
+
+  <!-- 2. Main Upload Zone -->
+  <view class="upload-zone" bindtap="chooseFile" hover-class="upload-zone-hover" wx:if="{{!filePath && !downloadUrl}}">
+    <view class="upload-circle-bg">
+      <image src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23EFF6FF'/%3E%3Cpath fill='%233B82F6' d='M32 18l-10 10h6v14h8V28h6z'/%3E%3Cpath fill='%233B82F6' d='M20 44h24v4H20z'/%3E%3C/svg%3E" class="upload-icon-img" />
+    </view>
+    <view class="upload-title">点击上传文件</view>
+    <view class="upload-subtitle">支持 {{sourceFormat}} 格式，最大 10MB</view>
+  </view>
+
+  <!-- 3. File Processing Card -->
+  <view class="process-card card" wx:if="{{filePath && !downloadUrl}}">
+    <view class="file-row">
+      <view class="file-icon-box">📄</view>
+      <view class="file-info">
+        <view class="file-name">{{fileName}}</view>
+        <view class="file-size">准备就绪</view>
+      </view>
+      <view class="close-btn" catchtap="clearFile">✕</view>
+    </view>
+    
+    <!-- Action Button inside card or below -->
+    <button class="btn-primary btn-block" bindtap="uploadAndConvert" loading="{{uploading}}" disabled="{{uploading}}">
+      {{uploading ? '正在处理...' : '开始转换'}}
+    </button>
+  </view>
+
+  <!-- 4. Success Result Card -->
+  <view class="result-card card" wx:if="{{downloadUrl}}">
+    <view class="success-anim">
+      <view class="check-icon">✓</view>
+    </view>
+    <view class="result-title">转换成功！</view>
+    <view class="result-desc">您的文件已准备好下载</view>
+    
+    <button class="btn-primary btn-block" bindtap="downloadFile">预览 / 下载文件</button>
+    <button class="btn-text" bindtap="clearFile">转换下一个文件</button>
+  </view>
+
+  <!-- Error Toast (Inline) -->
+  <view class="error-box" wx:if="{{errorMsg}}">
+    <text class="error-icon">⚠️</text>
+    <text>{{errorMsg}}</text>
+  </view>
+
+  <!-- Advanced Settings (Collapsible) -->
+  <view class="settings-section">
+    <view class="settings-header" bindtap="toggleDebug">
+      <text>高级设置</text>
+      <text class="arrow {{showDebug ? 'rotate' : ''}}">▼</text>
+    </view>
+    <view class="settings-content" wx:if="{{showDebug}}">
+      <view class="input-group">
+        <text class="label">服务器地址</text>
+        <input value="{{serverUrl}}" bindinput="onUrlInput" class="input-field" placeholder="例如: http://192.168.1.5:8000"/>
+      </view>
+    </view>
+  </view>
+
+</view>

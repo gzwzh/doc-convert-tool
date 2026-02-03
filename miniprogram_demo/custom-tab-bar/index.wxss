@@ -1,0 +1,42 @@
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px; /* Slightly taller */
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.04); /* Softer shadow */
+  z-index: 9999;
+  backdrop-filter: blur(10px);
+}
+
+.tab-bar-border {
+  /* Hidden for cleaner look */
+  display: none; 
+}
+
+.tab-bar-item {
+  flex: 1;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.tab-icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+  transition: transform 0.2s;
+}
+
+.tab-bar-item:active .tab-icon {
+  transform: scale(0.9);
+}
+
+.tab-text {
+  font-size: 10px;
+  font-weight: 600;
+}
