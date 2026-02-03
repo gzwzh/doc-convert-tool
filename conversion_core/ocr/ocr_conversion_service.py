@@ -13,8 +13,8 @@ from dataclasses import dataclass
 import pypdf
 
 from .ocr_service import BaiduOCRService
-from .retry_strategy import ErrorCode
-from .pdf_validator import PDFValidator, validate_pdf_file, ValidationResult
+from conversion_core.services.retry_strategy import ErrorCode
+from conversion_core.services.pdf_validator import PDFValidator, validate_pdf_file, ValidationResult
 
 
 # 大文件处理阈值

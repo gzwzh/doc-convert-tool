@@ -51,6 +51,17 @@ from backend.converters.json_to_svg import JsonToSvgConverter
 from backend.converters.xml_to_image import XmlToImageConverter
 from backend.converters.xml_to_svg import XmlToSvgConverter
 from backend.converters.pdf_to_rtf import PdfToRtfConverter
+from backend.converters.excel_to_ppt import ExcelToPptConverter
+from backend.converters.pdf_to_excel import PdfToExcelConverter
+from backend.converters.docx_to_excel import DocxToExcelConverter
+from backend.converters.docx_to_ppt import DocxToPptConverter
+from backend.converters.excel_to_pdf import ExcelToPdfConverter
+from backend.converters.ppt_to_pdf import PptToPdfConverter
+from backend.converters.ppt_to_image import PptToImageConverter
+from backend.converters.ppt_to_video import PptToVideoConverter
+from backend.converters.json_to_xlsx import JsonToXlsxConverter
+from backend.converters.excel_to_image import ExcelToImageConverter
+from backend.converters.excel_to_html import ExcelToHtmlConverter
 # from backend.converters.pdf_to_psd import PdfToPsdConverter  # 已移除：缺少psd_tools依赖
 
 # 配置常量（后续可移至 config.py）
@@ -91,6 +102,7 @@ class ConverterService:
             ('json', 'jpg'): JsonToImageConverter(),
             ('json', 'jpeg'): JsonToImageConverter(),
             ('json', 'svg'): JsonToSvgConverter(),
+            ('json', 'xlsx'): JsonToXlsxConverter(),
             # XML 转换
             ('xml', 'json'): XmlToJsonConverter(),
             ('xml', 'yaml'): XmlToYamlConverter(),
@@ -111,6 +123,10 @@ class ConverterService:
             ('docx', 'jpg'): DocxToImageConverter(),
             ('docx', 'jpeg'): DocxToImageConverter(),
             ('docx', 'epub'): DocxToEpubConverter(),
+            ('docx', 'xlsx'): DocxToExcelConverter(),
+            ('docx', 'xls'): DocxToExcelConverter(),
+            ('docx', 'pptx'): DocxToPptConverter(),
+            ('docx', 'ppt'): DocxToPptConverter(),
             # HTML 转换
             ('html', 'pdf'): HtmlToPdfConverter(),
             ('html', 'txt'): HtmlToTxtConverter(),
@@ -145,7 +161,35 @@ class ConverterService:
             ('pdf', 'pptx'): PdfToPptConverter(),
             ('pdf', 'ppt'): PdfToPptConverter(),
             ('pdf', 'rtf'): PdfToRtfConverter(),
+            ('pdf', 'xlsx'): PdfToExcelConverter(),
+            ('pdf', 'xls'): PdfToExcelConverter(),
             # ('pdf', 'psd'): PdfToPsdConverter(),  # 已移除：缺少psd_tools依赖
+            # PPT 转换
+            ('pptx', 'pdf'): PptToPdfConverter(),
+            ('ppt', 'pdf'): PptToPdfConverter(),
+            ('pptx', 'png'): PptToImageConverter(),
+            ('ppt', 'png'): PptToImageConverter(),
+            ('pptx', 'jpg'): PptToImageConverter(),
+            ('ppt', 'jpg'): PptToImageConverter(),
+            ('pptx', 'jpeg'): PptToImageConverter(),
+            ('ppt', 'jpeg'): PptToImageConverter(),
+            ('pptx', 'mp4'): PptToVideoConverter(),
+            ('ppt', 'mp4'): PptToVideoConverter(),
+            # EXCEL 转换
+            ('xlsx', 'pdf'): ExcelToPdfConverter(),
+            ('xls', 'pdf'): ExcelToPdfConverter(),
+            ('xlsx', 'pptx'): ExcelToPptConverter(),
+            ('xls', 'pptx'): ExcelToPptConverter(),
+            ('xlsx', 'ppt'): ExcelToPptConverter(),
+            ('xls', 'ppt'): ExcelToPptConverter(),
+            ('xlsx', 'png'): ExcelToImageConverter(),
+            ('xls', 'png'): ExcelToImageConverter(),
+            ('xlsx', 'jpg'): ExcelToImageConverter(),
+            ('xls', 'jpg'): ExcelToImageConverter(),
+            ('xlsx', 'jpeg'): ExcelToImageConverter(),
+            ('xls', 'jpeg'): ExcelToImageConverter(),
+            ('xlsx', 'html'): ExcelToHtmlConverter(),
+            ('xls', 'html'): ExcelToHtmlConverter(),
             # TXT 转换
             ('txt', 'pdf'): TxtToPdfConverter(),
             ('txt', 'html'): TxtToHtmlConverter(),

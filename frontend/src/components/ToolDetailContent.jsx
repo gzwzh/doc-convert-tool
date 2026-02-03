@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import JSZip from 'jszip';
@@ -34,7 +34,11 @@ const FILE_TYPE_MAP = {
   'GIF': ['.gif'],
   'BMP': ['.bmp'],
   'WEBP': ['.webp'],
-  'TIFF': ['.tiff', '.tif']
+  'TIFF': ['.tiff', '.tif'],
+  'EXCEL': ['.xlsx', '.xls'],
+  'Excel': ['.xlsx', '.xls'],
+  'WORD': ['.docx', '.doc'],
+  'IMAGE': ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff', '.webp']
 };
 
 function ToolDetailContent({ toolName, onBack }) {
@@ -165,6 +169,8 @@ function ToolDetailContent({ toolName, onBack }) {
     ? ['SPEECH', 'PDF', 'JPG', 'PNG'].includes(target)
     : source === 'XML'
     ? ['PDF', 'JPG', 'CSV', 'YAML'].includes(target)
+    : ['PPT', 'Excel'].includes(source)
+    ? false
     : true;
 
   if (source === 'DOCX' && (target === 'TXT' || target === 'EPUB' || target === 'PDF')) {
@@ -738,19 +744,29 @@ function ToolDetailContent({ toolName, onBack }) {
             result = await convertXML(file, target.toLowerCase(), options);
           } else if (
             // DOCX 转换
-            (source === 'DOCX' && ['TXT', 'PDF', 'PNG', 'JPG', 'EPUB'].includes(target)) ||
+            (source === 'DOCX' && ['TXT', 'PDF', 'PNG', 'JPG', 'EPUB', 'Excel', 'PPT'].includes(target)) ||
             // HTML 转换
             (source === 'HTML' && ['PDF', 'TXT', 'TEXT', 'MARKDOWN', 'MD', 'PNG', 'JPG', 'JPEG', 'DOCX', 'DOC', 'WORD', 'JSON', 'GIF', 'SVG'].includes(target)) ||
             // PDF 转换
-            (source === 'PDF' && ['TXT', 'DOCX', 'DOC', 'HTML', 'PNG', 'JPG', 'JPEG', 'BMP', 'TIFF', 'JSON', 'BASE64', 'MD', 'SVG', 'EPUB', 'GIF', 'WEBP', 'PPT', 'PPTX', 'RTF'].includes(target)) ||
+            (source === 'PDF' && ['TXT', 'DOCX', 'DOC', 'HTML', 'PNG', 'JPG', 'JPEG', 'BMP', 'TIFF', 'JSON', 'BASE64', 'MD', 'SVG', 'EPUB', 'GIF', 'WEBP', 'PPT', 'PPTX', 'RTF', 'Excel'].includes(target)) ||
             // TXT 转换
             (source === 'TXT' && ['PDF', 'HTML', 'PNG', 'JPG', 'JPEG', 'MP3', 'WAV', 'SPEECH', 'ASCII', 'BINARY', 'BIN', 'CSV', 'HEX'].includes(target)) ||
             // JSON 转换
-            (source === 'JSON' && ['CSV', 'HTML', 'PDF', 'BASE64', 'PNG', 'JPG', 'JPEG', 'SVG'].includes(target)) ||
+            (source === 'JSON' && ['CSV', 'HTML', 'PDF', 'BASE64', 'PNG', 'JPG', 'JPEG', 'SVG', 'Excel'].includes(target)) ||
             // XML 转换
-            (source === 'XML' && ['CSV', 'HTML', 'TXT', 'TEXT', 'PDF', 'XLSX', 'PNG', 'JPG', 'JPEG', 'SVG'].includes(target))
+            (source === 'XML' && ['CSV', 'HTML', 'TXT', 'TEXT', 'PDF', 'XLSX', 'PNG', 'JPG', 'JPEG', 'SVG'].includes(target)) ||
+            // PPT 转换
+            (source === 'PPT' && ['PDF', 'Excel', 'Image', 'Video'].includes(target)) ||
+            // Excel 转换
+            (source === 'Excel' && ['PDF', 'Image', 'PPT', 'HTML'].includes(target))
           ) {
             let targetFormat = target.toLowerCase();
+            if (target === 'Excel') targetFormat = 'xlsx';
+            if (target === 'Image') targetFormat = 'png'; // Default to png for Image generic
+            if (target === 'Video') targetFormat = 'mp4';
+            if (target === 'PPT') targetFormat = 'pptx';
+            if (target === 'HTML') targetFormat = 'html';
+            
             if (target === 'MARKDOWN') targetFormat = 'md';
             if (source === 'HTML' && target === 'TEXT') targetFormat = 'txt';
             if (source === 'XML' && target === 'TEXT') targetFormat = 'txt';

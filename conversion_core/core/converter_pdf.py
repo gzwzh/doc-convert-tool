@@ -12,7 +12,7 @@ import csv
 import json
 from pathlib import Path
 from conversion_core.core.base import Converter
-from conversion_core.core.office_to_pdf import OfficeToPDF
+from conversion_core.tools.office_to_pdf import OfficeToPDF
 
 
 class PDFConverter(Converter):

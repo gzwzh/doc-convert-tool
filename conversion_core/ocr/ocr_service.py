@@ -12,7 +12,7 @@ import os
 import time
 from typing import Dict, Literal, Optional, List
 
-from .retry_strategy import (
+from conversion_core.services.retry_strategy import (
     RetryStrategy, 
     ErrorCode, 
     OCRError,

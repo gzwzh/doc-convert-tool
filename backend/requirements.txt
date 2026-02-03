@@ -18,3 +18,7 @@ pygments
 gtts
 pyttsx3
 pydub
+openpyxl
+python-pptx
+pdfplumber
+pandas

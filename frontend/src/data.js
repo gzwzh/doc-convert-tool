@@ -4,8 +4,7 @@ import {
   FileExcelOutlined,
   FileImageOutlined,
   CodeOutlined,
-  FileTextOutlined,
-  ToolOutlined
+  FileTextOutlined
 } from '@ant-design/icons';
 
 export const categories = {
@@ -40,6 +39,11 @@ export const categories = {
           icon: FileWordOutlined,
           description: 'Convert DOCX to EPUB'
         },
+        {
+          name: 'DOCX To PPT',
+          icon: FilePdfOutlined,
+          description: 'Convert DOCX to PPT'
+        }
       ]
     },
     {
@@ -144,6 +148,11 @@ export const categories = {
           icon: CodeOutlined,
           description: 'Convert JSON to BASE64'
         },
+        {
+          name: 'JSON To Excel',
+          icon: FileExcelOutlined,
+          description: 'Convert JSON to Excel'
+        }
       ]
     },
     {
@@ -236,6 +245,60 @@ export const categories = {
           icon: FilePdfOutlined,
           description: 'Convert PDF to WEBP'
         },
+        {
+          name: 'PDF To Excel',
+          icon: FileExcelOutlined,
+          description: 'Convert PDF to Excel'
+        }
+      ]
+    },
+    {
+      name: 'PPT 转换器',
+      icon: FilePdfOutlined,
+      description: 'PPT 转换器',
+      tools: [
+        {
+          name: 'PPT To PDF',
+          icon: FilePdfOutlined,
+          description: 'Convert PPT to PDF'
+        },
+        {
+          name: 'PPT To Image',
+          icon: FileImageOutlined,
+          description: 'Convert PPT to Image'
+        },
+        {
+          name: 'PPT To Video',
+          icon: FileImageOutlined,
+          description: 'Convert PPT to Video (MP4)'
+        }
+      ]
+    },
+    {
+      name: 'Excel 转换器',
+      icon: FileExcelOutlined,
+      description: 'Excel 转换器',
+      tools: [
+        {
+          name: 'Excel To PDF',
+          icon: FilePdfOutlined,
+          description: 'Convert Excel to PDF'
+        },
+        {
+          name: 'Excel To Image',
+          icon: FileImageOutlined,
+          description: 'Convert Excel to Image'
+        },
+        {
+          name: 'Excel To PPT',
+          icon: FileExcelOutlined,
+          description: 'Convert Excel to PPT'
+        },
+        {
+          name: 'Excel To HTML',
+          icon: CodeOutlined,
+          description: 'Convert Excel to HTML'
+        }
       ]
     },
     {
