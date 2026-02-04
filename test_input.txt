@@ -1,1 +1,0 @@
-Hello, this is a test of text to speech conversion with custom speed and pitch settings.
