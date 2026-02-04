@@ -216,7 +216,7 @@ class PPTConverter(Converter):
             return {'success': False, 'error': f'PDF转PPT失败: {error_msg}'}
     
     def _convert_excel_to_ppt(self, file_path):
-        """Excel转PPT"""
+        """Excel转PPT - 改进版，使用表格而不是文本"""
         try:
             from openpyxl import load_workbook
         except ImportError as e:
@@ -224,7 +224,7 @@ class PPTConverter(Converter):
         
         try:
             from pptx import Presentation
-            from pptx.util import Inches
+            from pptx.util import Inches, Pt
         except ImportError as e:
             return {'success': False, 'error': f'python-pptx库导入失败: {str(e)}'}
         
@@ -237,26 +237,97 @@ class PPTConverter(Converter):
             for sheet_name in wb.sheetnames:
                 ws = wb[sheet_name]
                 
-                # 创建新幻灯片
-                slide_layout = prs.slide_layouts[1]  # 标题和内容布局
+                # 获取实际使用的行列范围
+                max_row = ws.max_row
+                max_col = ws.max_column
+                
+                # 跳过空工作表
+                if max_row == 0 or max_col == 0:
+                    continue
+                
+                # 限制表格大小（避免太大放不下）
+                max_display_rows = 15
+                max_display_cols = 8
+                
+                actual_rows = min(max_row, max_display_rows)
+                actual_cols = min(max_col, max_display_cols)
+                
+                # 创建新幻灯片（空白布局）
+                slide_layout = prs.slide_layouts[6]  # 空白布局
                 slide = prs.slides.add_slide(slide_layout)
                 
-                # 设置标题
-                title = slide.shapes.title
-                title.text = sheet_name
+                # 添加标题
+                title_left = Inches(0.5)
+                title_top = Inches(0.3)
+                title_width = Inches(9)
+                title_height = Inches(0.6)
                 
-                # 获取内容占位符
-                content = slide.placeholders[1]
-                text_frame = content.text_frame
-                text_frame.word_wrap = True
+                title_box = slide.shapes.add_textbox(title_left, title_top, title_width, title_height)
+                title_frame = title_box.text_frame
+                title_para = title_frame.paragraphs[0]
+                title_para.text = sheet_name
+                title_para.font.size = Pt(24)
+                title_para.font.bold = True
                 
-                # 添加表格内容
-                text_lines = []
-                for row in ws.iter_rows(values_only=True):
-                    row_text = '\t'.join([str(cell) if cell is not None else '' for cell in row])
-                    text_lines.append(row_text)
+                # 添加表格
+                table_left = Inches(0.5)
+                table_top = Inches(1.2)
+                table_width = Inches(9)
+                table_height = Inches(5.5)
                 
-                text_frame.text = '\n'.join(text_lines)
+                # 创建表格
+                table = slide.shapes.add_table(
+                    actual_rows, 
+                    actual_cols, 
+                    table_left, 
+                    table_top, 
+                    table_width, 
+                    table_height
+                ).table
+                
+                # 填充表格数据
+                for row_idx in range(actual_rows):
+                    for col_idx in range(actual_cols):
+                        cell_value = ws.cell(row=row_idx + 1, column=col_idx + 1).value
+                        cell_text = str(cell_value) if cell_value is not None else ''
+                        
+                        # 限制单元格文本长度
+                        if len(cell_text) > 50:
+                            cell_text = cell_text[:47] + '...'
+                        
+                        table.cell(row_idx, col_idx).text = cell_text
+                        
+                        # 设置字体大小
+                        cell = table.cell(row_idx, col_idx)
+                        for paragraph in cell.text_frame.paragraphs:
+                            for run in paragraph.runs:
+                                run.font.size = Pt(10)
+                        
+                        # 第一行加粗（作为表头）
+                        if row_idx == 0:
+                            for paragraph in cell.text_frame.paragraphs:
+                                for run in paragraph.runs:
+                                    run.font.bold = True
+                
+                # 如果数据被截断，添加提示
+                if max_row > max_display_rows or max_col > max_display_cols:
+                    note_top = Inches(7)
+                    note_box = slide.shapes.add_textbox(Inches(0.5), note_top, Inches(9), Inches(0.3))
+                    note_frame = note_box.text_frame
+                    note_para = note_frame.paragraphs[0]
+                    note_para.text = f"注: 仅显示前 {actual_rows} 行 × {actual_cols} 列数据"
+                    note_para.font.size = Pt(10)
+                    note_para.font.italic = True
+            
+            # 确保至少有一张幻灯片
+            if len(prs.slides) == 0:
+                slide_layout = prs.slide_layouts[6]
+                slide = prs.slides.add_slide(slide_layout)
+                title_box = slide.shapes.add_textbox(Inches(2), Inches(3), Inches(6), Inches(1))
+                title_frame = title_box.text_frame
+                title_para = title_frame.paragraphs[0]
+                title_para.text = "Excel文件为空"
+                title_para.font.size = Pt(24)
             
             output_file = self.get_output_filename(file_path, 'pptx')
             prs.save(output_file)

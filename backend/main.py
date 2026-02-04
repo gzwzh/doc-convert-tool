@@ -38,6 +38,8 @@ if __name__ == "__main__":
     is_frozen = getattr(sys, "frozen", False)
     port = int(os.environ.get("BACKEND_PORT", "8002"))
     if is_frozen:
-        uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
+        # 增加超时时间以支持长时间转换（如PPT转视频）
+        uvicorn.run(app, host="0.0.0.0", port=port, reload=False, timeout_keep_alive=900)
     else:
-        uvicorn.run("backend.main:app", host="0.0.0.0", port=port, reload=True)
+        # 开发环境也增加超时
+        uvicorn.run("backend.main:app", host="0.0.0.0", port=port, reload=True, timeout_keep_alive=900)

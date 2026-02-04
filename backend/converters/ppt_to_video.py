@@ -1,26 +1,84 @@
 import os
 import time
+import logging
+import sys
 from typing import Dict, Any
 from .base import BaseConverter
 import platform
+from datetime import datetime
 
 class PptToVideoConverter(BaseConverter):
     """PPT 转视频转换器 (仅限 Windows, 需要安装 PowerPoint)"""
     
     def __init__(self):
         super().__init__()
+        # 初始化日志
+        self._setup_logger()
+        
+    def _setup_logger(self):
+        """设置日志记录器"""
+        # 配置日志目录
+        log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, f'ppt_to_video_{datetime.now().strftime("%Y%m%d")}.log')
+        
+        # 创建logger
+        self.logger = logging.getLogger('PptToVideo')
+        self.logger.setLevel(logging.DEBUG)
+        
+        # 清除已有的处理器
+        self.logger.handlers.clear()
+        
+        # 文件处理器
+        try:
+            file_handler = logging.FileHandler(log_file, encoding='utf-8', mode='a')
+            file_handler.setLevel(logging.DEBUG)
+            file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+            file_handler.setFormatter(file_formatter)
+            self.logger.addHandler(file_handler)
+            print(f"[PptToVideo] 日志文件: {log_file}")
+        except Exception as e:
+            print(f"[PptToVideo] 无法创建日志文件: {e}")
+            self.logger = None
+            
+    def _log(self, level, message):
+        """记录日志"""
+        print(f"[PptToVideo] {message}")  # 始终输出到控制台
+        if self.logger:
+            if level == 'info':
+                self.logger.info(message)
+            elif level == 'error':
+                self.logger.error(message)
+            elif level == 'warning':
+                self.logger.warning(message)
+            elif level == 'debug':
+                self.logger.debug(message)
+    """PPT 转视频转换器 (仅限 Windows, 需要安装 PowerPoint)"""
+    
+    def __init__(self):
+        super().__init__()
         
     def convert(self, input_path: str, output_path: str, **options) -> Dict[str, Any]:
+        self._log('info', "="*60)
+        self._log('info', "开始PPT转视频转换")
+        self._log('info', f"输入文件: {input_path}")
+        self._log('info', f"输出文件: {output_path}")
+        self._log('info', f"转换选项: {options}")
+        self._log('info', "="*60)
+        
         self.validate_input(input_path)
         self.update_progress(input_path, 5)
         
         if platform.system() != 'Windows':
+            self._log('error', "不支持的操作系统")
             raise Exception("PPT to Video conversion is only supported on Windows")
             
         try:
             import win32com.client
             import pythoncom
-        except ImportError:
+            self._log('info', "成功导入win32com库")
+        except ImportError as e:
+            self._log('error', f"导入pywin32失败: {e}")
             raise Exception("pywin32 library not found. Please install it.")
             
         # 创建临时工作目录
@@ -28,18 +86,23 @@ class PptToVideoConverter(BaseConverter):
         import shutil
         import uuid
         
-        # 1. 复制输入文件到纯 ASCII 路径的临时文件，避免中文路径或文件名问题
-        # 同时也解决了文件占用问题
+        # 1. 复制输入文件到纯 ASCII 路径的临时文件
         temp_dir = tempfile.gettempdir()
-        temp_input_name = f"ppt_temp_{uuid.uuid4().hex}.pptx"
+        original_ext = os.path.splitext(input_path)[1]
+        temp_input_name = f"ppt_temp_{uuid.uuid4().hex}{original_ext}"
         temp_input_path = os.path.join(temp_dir, temp_input_name)
+        
+        self._log('info', f"原始文件: {input_path}")
+        self._log('info', f"原始文件名: {os.path.basename(input_path)}")
+        self._log('info', f"文件扩展名: {original_ext}")
         
         try:
             shutil.copy2(input_path, temp_input_path)
-            print(f"[PptToVideo] Copied input to temp file: {temp_input_path}")
+            self._log('info', f"成功复制到临时文件: {temp_input_path}")
+            self._log('info', f"临时文件大小: {os.path.getsize(temp_input_path)} bytes")
             working_input_path = temp_input_path
         except Exception as e:
-            print(f"[PptToVideo] Failed to copy to temp file: {e}. Using original path.")
+            self._log('warning', f"复制失败: {e}，使用原始路径")
             working_input_path = input_path
 
         ppt_app = None
@@ -47,55 +110,76 @@ class PptToVideoConverter(BaseConverter):
         
         try:
             # 初始化 COM
+            self._log('info', "初始化COM...")
             pythoncom.CoInitialize()
             
-            # 尝试清理残留的 PowerPoint 进程（可选，但推荐）
-            # os.system("taskkill /F /IM POWERPNT.EXE") 
-            # 注意：这会杀掉用户正在运行的所有 PPT，可能不友好。但在服务器环境通常没问题。
-            
-            # 尝试使用 PowerShell Unblock-File 解锁文件 (Mark of the Web)
-            # 对临时文件也执行一次
+            # 解锁文件
             try:
                 import subprocess
-                subprocess.run(["powershell", "Unblock-File", "-Path", f"'{working_input_path}'"], check=True, capture_output=True)
-                print(f"[PptToVideo] Unblock-File executed for {working_input_path}")
+                self._log('info', f"解锁文件: {working_input_path}")
+                subprocess.run(
+                    ["powershell", "Unblock-File", "-Path", f"'{working_input_path}'"], 
+                    check=True, capture_output=True, timeout=10
+                )
+                self._log('info', "文件解锁成功")
             except Exception as e:
-                print(f"[PptToVideo] Warning: Failed to unblock file: {e}")
+                self._log('warning', f"文件解锁失败: {e}")
 
             # 启动 PowerPoint
             try:
-                # 使用 EnsureDispatch 确保能获取到实例
+                self._log('info', "启动PowerPoint...")
                 ppt_app = win32com.client.Dispatch("PowerPoint.Application")
-                
-                # 尝试访问一个属性来验证 COM 对象是否活跃
-                _ = ppt_app.Version
-                
-                ppt_app.Visible = 1 # 必须设置为可见
-                ppt_app.DisplayAlerts = 0 # 关闭所有弹窗警告
+                version = ppt_app.Version
+                self._log('info', f"PowerPoint版本: {version}")
+                ppt_app.Visible = 1
+                ppt_app.DisplayAlerts = 0
             except Exception as e:
-                # 如果启动失败，可能是因为死进程占用了 COM 端口
-                print(f"[PptToVideo] First attempt to start PowerPoint failed: {e}. Trying to kill zombie processes...")
-                try:
-                    os.system("taskkill /F /IM POWERPNT.EXE")
-                    time.sleep(2) # 等待清理
-                    ppt_app = win32com.client.Dispatch("PowerPoint.Application")
-                    ppt_app.Visible = 1
-                    ppt_app.DisplayAlerts = 0
-                except Exception as e2:
-                    raise Exception(f"Failed to start PowerPoint even after cleanup. Error: {e2}")
+                self._log('error', f"PowerPoint启动失败: {e}")
+                self._log('info', "清理残留进程...")
+                os.system("taskkill /F /IM POWERPNT.EXE")
+                time.sleep(2)
+                ppt_app = win32com.client.Dispatch("PowerPoint.Application")
+                ppt_app.Visible = 1
+                ppt_app.DisplayAlerts = 0
+                self._log('info', "PowerPoint重启成功")
                 
             self.update_progress(input_path, 20)
             
             # 打开演示文稿
-            # CreateVideo 需要窗口句柄才能高效工作
             try:
-                presentation = ppt_app.Presentations.Open(working_input_path, WithWindow=True)
-                # 增加短暂延时，确保加载完成
+                self._log('info', f"打开演示文稿: {working_input_path}")
+                self._log('info', f"文件存在: {os.path.exists(working_input_path)}")
+                self._log('info', f"文件大小: {os.path.getsize(working_input_path)} bytes")
+                
+                presentation = ppt_app.Presentations.Open(
+                    working_input_path, 
+                    ReadOnly=True,
+                    Untitled=False,
+                    WithWindow=True
+                )
                 time.sleep(2)
+                
+                slide_count = presentation.Slides.Count
+                self._log('info', f"演示文稿打开成功，幻灯片数: {slide_count}")
+                
+                if slide_count == 0:
+                    raise Exception("PPT文件没有幻灯片")
+                    
             except Exception as e:
-                # 如果Open失败，可能是因为Protected View的限制，或者其他COM错误
-                # 尝试先关闭Protected View (虽然Unblock-File应该解决了)
-                raise Exception(f"Failed to open presentation: {e}")
+                self._log('error', f"打开演示文稿失败: {type(e).__name__}")
+                self._log('error', f"错误详情: {e}")
+                
+                import traceback
+                self._log('error', f"错误堆栈:\n{traceback.format_exc()}")
+                
+                error_msg = "无法打开PPT文件。可能的原因：\n"
+                error_msg += "1. 文件已损坏或格式不正确\n"
+                error_msg += "2. PowerPoint版本不兼容\n"
+                error_msg += "3. 文件被密码保护\n"
+                error_msg += "4. 文件正在被其他程序使用\n"
+                error_msg += f"\n原始错误: {str(e)}"
+                
+                raise Exception(error_msg)
             
             # 处理受保护视图 (Protected View)
             # 即使 Unblock-File 执行了，有时可能仍会进入受保护视图
@@ -120,9 +204,9 @@ class PptToVideoConverter(BaseConverter):
             # ppSaveAsMP4 = 39, ppSaveAsWMV = 37
             output_format = 39  # MP4
             
-            # 配置视频参数
-            resolution = options.get('resolution', 1080)  # 默认 1080p
-            quality = options.get('quality', 60)  # 默认质量
+            # 配置视频参数 - 优化默认值以加快速度
+            resolution = options.get('resolution', 720)  # 默认 720p（从1080p降低）
+            quality = options.get('quality', 50)  # 默认质量（从60降低到50）
             
             # 使用临时输出文件（纯ASCII路径），避免输出路径的中文/编码问题
             temp_output_name = f"ppt_out_{uuid.uuid4().hex}.mp4"
@@ -145,43 +229,56 @@ class PptToVideoConverter(BaseConverter):
             # FramesPerSecond: Default 30
             # Quality: 1-100
             
-            # 使用 5 秒作为默认幻灯片持续时间，而不是 60 秒
-            use_timings = options.get('use_timings', True)
-            fps = options.get('fps', 30)
+            # 优化视频参数以加快转换速度
+            use_timings = options.get('use_timings', False)  # 改为False，不使用PPT内置时间
+            fps = options.get('fps', 24)  # 从30降低到24帧，减少渲染量
+            default_slide_duration = options.get('slide_duration', 3)  # 从5秒改为3秒，加快速度
             
             try:
                 # 尝试使用 CreateVideo 方法
-                presentation.CreateVideo(temp_output_path, use_timings, 5, resolution, fps, quality)
+                presentation.CreateVideo(temp_output_path, use_timings, default_slide_duration, resolution, fps, quality)
                 
                 self.update_progress(input_path, 50)
                 
                 # 等待导出完成
                 start_time = time.time()
+                last_progress_update = start_time
                 
                 while True:
-                    time.sleep(1)
+                    time.sleep(2)  # 每2秒检查一次，减少CPU占用
                     
                     try:
                         status = presentation.CreateVideoStatus
                         
+                        # 更新进度（每10秒更新一次）
+                        if time.time() - last_progress_update > 10:
+                            elapsed = time.time() - start_time
+                            # 估算进度：假设最多需要5分钟
+                            estimated_progress = min(50 + int((elapsed / 300) * 45), 95)
+                            self.update_progress(input_path, estimated_progress)
+                            last_progress_update = time.time()
+                            print(f"[PptToVideo] Status: {status}, Elapsed: {int(elapsed)}s")
+                        
                         if status == 3: # Done
+                            print(f"[PptToVideo] Video creation completed successfully")
                             break
                         elif status == 4: # Failed
                             raise Exception("PowerPoint reported video creation failure (Status=4)")
                         elif status == 0: # None
                              if time.time() - start_time > 10:
                                  if os.path.exists(temp_output_path) and os.path.getsize(temp_output_path) > 0:
+                                     print(f"[PptToVideo] Output file exists, assuming success")
                                      break 
                                  elif time.time() - start_time > 60:
                                      raise Exception("Video export failed to start (Status remains 0)")
                     except Exception as e:
-                        print(f"Error checking status: {e}")
+                        print(f"[PptToVideo] Error checking status: {e}")
                         # 异常情况下，尝试 SaveAs 作为回退
                         raise e 
                         
-                    # 超时保护
+                    # 超时保护：10分钟
                     if time.time() - start_time > 600:
-                        raise Exception("Video export timed out")
+                        raise Exception("Video export timed out after 10 minutes")
                         
             except Exception as e:
                 print(f"[PptToVideo] CreateVideo failed: {e}. Trying SaveAs fallback...")

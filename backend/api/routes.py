@@ -149,6 +149,12 @@ async def convert_general(
     """
     通用转换接口 (DOCX, HTML, PDF, TXT)
     """
+    print(f"\n{'='*60}")
+    print(f"[API] 收到转换请求")
+    print(f"[API] 文件名: {file.filename}")
+    print(f"[API] 目标格式: {target_format}")
+    print(f"{'='*60}\n")
+    
     input_path = None
     try:
         # 1. 获取源格式

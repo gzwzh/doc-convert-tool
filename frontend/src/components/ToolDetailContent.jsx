@@ -715,9 +715,18 @@ function ToolDetailContent({ toolName, onBack }) {
     setIsConverting(true);
     setConversionResults({});
     
+    // 检查是否是PPT转视频，给出特殊提示
+    const isPptToVideo = (source === 'PPT' || source === 'PPTX') && target === 'Video';
+    if (isPptToVideo && files.length > 0) {
+      toast('PPT转视频需要2-5分钟，请耐心等待...', { 
+        duration: 4000,
+        icon: '⏱️'
+      });
+    }
+    
     let successCount = 0;
     let failureCount = 0;
-    const toastId = toast.loading('正在处理文件...');
+    const toastId = toast.loading(isPptToVideo ? '正在转换视频，请耐心等待...' : '正在处理文件...');
 
     try {
       // Loop through all files

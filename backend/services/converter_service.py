@@ -58,7 +58,11 @@ from backend.converters.docx_to_ppt import DocxToPptConverter
 from backend.converters.excel_to_pdf import ExcelToPdfConverter
 from backend.converters.ppt_to_pdf import PptToPdfConverter
 from backend.converters.ppt_to_image import PptToImageConverter
+from backend.converters.ppt_to_image_wps import PptToImageWpsConverter
 from backend.converters.ppt_to_video import PptToVideoConverter
+from backend.converters.ppt_to_video_wps import PptToVideoWpsConverter
+from backend.converters.ppt_to_video_smart import PptToVideoSmartConverter
+from backend.converters.ppt_to_video_pptx2mp4 import PptToVideoPptx2mp4Converter
 from backend.converters.json_to_xlsx import JsonToXlsxConverter
 from backend.converters.excel_to_image import ExcelToImageConverter
 from backend.converters.excel_to_html import ExcelToHtmlConverter
@@ -167,14 +171,14 @@ class ConverterService:
             # PPT 转换
             ('pptx', 'pdf'): PptToPdfConverter(),
             ('ppt', 'pdf'): PptToPdfConverter(),
-            ('pptx', 'png'): PptToImageConverter(),
-            ('ppt', 'png'): PptToImageConverter(),
-            ('pptx', 'jpg'): PptToImageConverter(),
-            ('ppt', 'jpg'): PptToImageConverter(),
-            ('pptx', 'jpeg'): PptToImageConverter(),
-            ('ppt', 'jpeg'): PptToImageConverter(),
-            ('pptx', 'mp4'): PptToVideoConverter(),
-            ('ppt', 'mp4'): PptToVideoConverter(),
+            ('pptx', 'png'): PptToImageWpsConverter(),  # 使用WPS导出PNG
+            ('ppt', 'png'): PptToImageWpsConverter(),  # 使用WPS导出PNG
+            ('pptx', 'jpg'): PptToImageWpsConverter(),  # 使用WPS导出JPG
+            ('ppt', 'jpg'): PptToImageWpsConverter(),  # 使用WPS导出JPG
+            ('pptx', 'jpeg'): PptToImageWpsConverter(),  # 使用WPS导出JPEG
+            ('ppt', 'jpeg'): PptToImageWpsConverter(),  # 使用WPS导出JPEG
+            ('pptx', 'mp4'): PptToVideoSmartConverter(),  # 智能转换器（WPS修复版）
+            ('ppt', 'mp4'): PptToVideoSmartConverter(),  # 智能转换器（WPS修复版）
             # EXCEL 转换
             ('xlsx', 'pdf'): ExcelToPdfConverter(),
             ('xls', 'pdf'): ExcelToPdfConverter(),

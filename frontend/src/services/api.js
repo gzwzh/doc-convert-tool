@@ -184,17 +184,33 @@ export const convertGeneral = async (file, targetFormat, options = {}) => {
     if (!ready) {
       throw new Error('后端服务未启动');
     }
-    const response = await fetch(`${apiBaseUrl}/api/convert/general`, {
-      method: 'POST',
-      body: formData,
-    });
+    
+    // 创建一个带超时的 AbortController
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15 * 60 * 1000); // 15分钟超时
+    
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/convert/general`, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || '转换失败');
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || '转换失败');
+      }
+
+      return await response.json();
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('转换超时，请稍后重试或联系管理员');
+      }
+      throw error;
     }
-
-    return await response.json();
   } catch (error) {
     console.error('Conversion error:', error);
     throw error;

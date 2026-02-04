@@ -172,8 +172,35 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('file:save', async (event, filePath, buffer) => {
     try {
+      // 确保目录存在
+      const dir = path.dirname(filePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      
+      // 如果文件已存在且被占用，尝试删除
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (unlinkError) {
+          // 文件可能被占用，等待一下再试
+          await new Promise(resolve => setTimeout(resolve, 500));
+          try {
+            fs.unlinkSync(filePath);
+          } catch (retryError) {
+            // 如果还是失败，尝试用新文件名
+            const ext = path.extname(filePath);
+            const base = path.basename(filePath, ext);
+            const dir = path.dirname(filePath);
+            filePath = path.join(dir, `${base}_${Date.now()}${ext}`);
+            console.log('[File Save] Original file locked, using new name:', filePath);
+          }
+        }
+      }
+      
+      // 写入文件
       fs.writeFileSync(filePath, Buffer.from(buffer));
-      return { success: true };
+      return { success: true, filePath };
     } catch (error) {
       console.error('File save error:', error);
       return { success: false, error: error.message };

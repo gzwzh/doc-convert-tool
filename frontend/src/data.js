@@ -263,9 +263,14 @@ export const categories = {
           description: 'Convert PPT to PDF'
         },
         {
-          name: 'PPT To Image',
+          name: 'PPT To PNG',
           icon: FileImageOutlined,
-          description: 'Convert PPT to Image'
+          description: 'Convert PPT to PNG'
+        },
+        {
+          name: 'PPT To JPG',
+          icon: FileImageOutlined,
+          description: 'Convert PPT to JPG'
         },
         {
           name: 'PPT To Video',
@@ -285,19 +290,19 @@ export const categories = {
           description: 'Convert Excel to PDF'
         },
         {
-          name: 'Excel To Image',
+          name: 'Excel To PNG',
           icon: FileImageOutlined,
-          description: 'Convert Excel to Image'
+          description: 'Convert Excel to PNG'
+        },
+        {
+          name: 'Excel To JPG',
+          icon: FileImageOutlined,
+          description: 'Convert Excel to JPG'
         },
         {
           name: 'Excel To PPT',
           icon: FileExcelOutlined,
           description: 'Convert Excel to PPT'
-        },
-        {
-          name: 'Excel To HTML',
-          icon: CodeOutlined,
-          description: 'Convert Excel to HTML'
         }
       ]
     },
