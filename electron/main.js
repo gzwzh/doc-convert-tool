@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const net = require('net');
+const http = require('http');
 const { spawn } = require('child_process');
 
 let backendProcess = null;
@@ -203,6 +204,59 @@ app.whenReady().then(async () => {
       return { success: true, filePath };
     } catch (error) {
       console.error('File save error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 下载文件 (从后端直接下载到磁盘，避免前端 Blob 传输)
+  ipcMain.handle('file:download', async (event, url, targetDir, filename) => {
+    try {
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+      
+      let finalFilePath = path.join(targetDir, filename);
+      
+      // 简单的重名处理
+      if (fs.existsSync(finalFilePath)) {
+        try {
+          // 尝试删除旧文件
+          fs.unlinkSync(finalFilePath);
+        } catch (e) {
+          // 删除失败（可能被占用），使用新文件名
+          const ext = path.extname(filename);
+          const base = path.basename(filename, ext);
+          finalFilePath = path.join(targetDir, `${base}_${Date.now()}${ext}`);
+        }
+      }
+
+      const file = fs.createWriteStream(finalFilePath);
+      
+      return await new Promise((resolve) => {
+        const request = http.get(url, (response) => {
+          if (response.statusCode !== 200) {
+             file.close();
+             fs.unlink(finalFilePath, () => {}); 
+             resolve({ success: false, error: `Server returned ${response.statusCode}` });
+             return;
+          }
+          
+          response.pipe(file);
+          
+          file.on('finish', () => {
+            file.close();
+            resolve({ success: true, filePath: finalFilePath });
+          });
+        });
+        
+        request.on('error', (err) => {
+          file.close();
+          fs.unlink(finalFilePath, () => {});
+          resolve({ success: false, error: err.message });
+        });
+      });
+    } catch (error) {
+      console.error('File download error:', error);
       return { success: false, error: error.message };
     }
   });

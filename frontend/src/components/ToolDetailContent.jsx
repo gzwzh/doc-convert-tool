@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import JSZip from 'jszip';
@@ -170,7 +170,7 @@ function ToolDetailContent({ toolName, onBack }) {
     : source === 'XML'
     ? ['PDF', 'JPG', 'CSV', 'YAML'].includes(target)
     : ['PPT', 'Excel'].includes(source)
-    ? false
+    ? ['PNG', 'JPG', 'JPEG', 'Image'].includes(target)
     : true;
 
   if (source === 'DOCX' && (target === 'TXT' || target === 'EPUB' || target === 'PDF')) {
@@ -430,41 +430,31 @@ function ToolDetailContent({ toolName, onBack }) {
                   try {
                     if (!res.download_url) {
                         console.error('[BatchDownload] Missing download_url in response', res);
-                        throw new Error('Invalid conversion result: missing download URL');
+                        continue; 
                     }
                     const url = `${apiBaseUrl}${res.download_url}`;
-                    console.log(`[BatchDownload] Fetching URL: ${url}`);
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        const errorMsg = `Fetch failed: ${response.status} for ${url}`;
-                        console.error(`[BatchDownload] ${errorMsg}`);
-                        throw new Error(errorMsg);
-                    }
-                    const blob = await response.blob();
-                    const arrayBuffer = await blob.arrayBuffer();
                     
                     // 使用 display_name（如果有），否则从 URL 提取
                     const filename = res.display_name || (res.download_url.split('/').pop() ? decodeURIComponent(res.download_url.split('/').pop()) : `file-${Date.now()}.dat`);
                     
-                    // In Electron, we need to construct the full path. 
-                    // Since we can't easily use 'path.join' in frontend without more exposure, 
-                    // we'll assume standard separator or let backend handle? 
-                    // Actually simple string concat with '/' usually works in JS even on Windows for many node APIs, 
-                    // but for fs.writeFileSync in Main process, we should send the dirPath and filename separately?
-                    // Or just concat with backslash if on Windows?
-                    // Let's assume the user selects a path like "C:\Users\..."
-                    // We'll construct the path in frontend. 
-                    // A safe bet is to handle path joining in the main process, but for now let's do simple check.
-                    const separator = dirPath.includes('\\') ? '\\' : '/';
-                    const fullPath = `${dirPath}${separator}${filename}`;
-
-                    const result = await window.electronAPI.saveFile(fullPath, arrayBuffer);
-                    if (!result.success) throw new Error(result.error);
-                    
-                    successCount++;
+                    // Use new main process download logic
+                    try {
+                      const result = await window.electronAPI.downloadFile(url, dirPath, filename);
+                      if (!result.success) throw new Error(result.error);
+                      successCount++;
+                    } catch (ipcError) {
+                      if (ipcError.message && ipcError.message.includes('No handler registered')) {
+                         throw new Error('应用核心组件已更新，请重启应用以生效');
+                      }
+                      throw ipcError;
+                    }
                   } catch (err) {
                     console.error('Electron save error:', err);
                     lastError = err;
+                    // 如果是需要重启的错误，直接中断循环并抛出，让外层捕获显示
+                    if (err.message === '应用核心组件已更新，请重启应用以生效') {
+                        throw err;
+                    }
                   }
                 }
 
@@ -765,9 +755,9 @@ function ToolDetailContent({ toolName, onBack }) {
             // XML 转换
             (source === 'XML' && ['CSV', 'HTML', 'TXT', 'TEXT', 'PDF', 'XLSX', 'PNG', 'JPG', 'JPEG', 'SVG'].includes(target)) ||
             // PPT 转换
-            (source === 'PPT' && ['PDF', 'Excel', 'Image', 'Video'].includes(target)) ||
+            (source === 'PPT' && ['PDF', 'Excel', 'Image', 'Video', 'PNG', 'JPG', 'JPEG'].includes(target)) ||
             // Excel 转换
-            (source === 'Excel' && ['PDF', 'Image', 'PPT', 'HTML'].includes(target))
+            (source === 'Excel' && ['PDF', 'Image', 'PPT', 'HTML', 'PNG', 'JPG', 'JPEG'].includes(target))
           ) {
             let targetFormat = target.toLowerCase();
             if (target === 'Excel') targetFormat = 'xlsx';
@@ -937,6 +927,34 @@ function ToolDetailContent({ toolName, onBack }) {
               if (target === 'PDF') {
                 options.quality = convertOptions.quality;
                 options.backgroundColor = convertOptions.backgroundColor;
+              }
+            }
+            
+            // PPT specific options
+            if (source === 'PPT') {
+              if (['PNG', 'JPG', 'JPEG', 'Image'].includes(target)) {
+                options.quality = convertOptions.quality;
+                options.backgroundColor = convertOptions.backgroundColor;
+                options.watermark_text = watermarkOptions.text;
+                options.watermark_opacity = watermarkOptions.opacity;
+                options.watermark_size = watermarkOptions.size;
+                options.watermark_color = watermarkOptions.color;
+                options.watermark_angle = watermarkOptions.angle;
+                options.watermark_position = watermarkOptions.position;
+              }
+            }
+
+            // Excel specific options
+            if (source === 'Excel') {
+              if (['PNG', 'JPG', 'JPEG', 'Image'].includes(target)) {
+                options.quality = convertOptions.quality;
+                options.backgroundColor = convertOptions.backgroundColor;
+                options.watermark_text = watermarkOptions.text;
+                options.watermark_opacity = watermarkOptions.opacity;
+                options.watermark_size = watermarkOptions.size;
+                options.watermark_color = watermarkOptions.color;
+                options.watermark_angle = watermarkOptions.angle;
+                options.watermark_position = watermarkOptions.position;
               }
             }
             
@@ -1697,6 +1715,44 @@ function ToolDetailContent({ toolName, onBack }) {
                   </div>
                 )}
 
+              </div>
+            ) : ['PPT', 'Excel'].includes(source) ? (
+              <div className="ppt-excel-specific-options" style={{ padding: '0 20px 20px' }}>
+                {['JPG', 'PNG', 'JPEG', 'Image'].includes(target) && (
+                  <>
+                    <div className="sub-option" style={{ marginTop: '20px' }}>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>质量 (1-100)</label>
+                      <input 
+                        type="range" 
+                        min="1" 
+                        max="100" 
+                        value={convertOptions.quality}
+                        onChange={(e) => setConvertOptions({...convertOptions, quality: parseInt(e.target.value)})}
+                        style={{ width: '100%', marginBottom: '8px' }}
+                      />
+                      <div className="value-label-center" style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                        {convertOptions.quality}%
+                      </div>
+                    </div>
+
+                    <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
+                      <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                      <input 
+                        type="color" 
+                        value={convertOptions.backgroundColor}
+                        onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                        style={{ width: '60px', height: '32px', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}
+                      />
+                      <input 
+                        type="text" 
+                        value={convertOptions.backgroundColor}
+                        onChange={(e) => setConvertOptions({...convertOptions, backgroundColor: e.target.value})}
+                        placeholder="#ffffff"
+                        style={{ flex: 1, fontFamily: 'monospace' }}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             ) : source === 'XML' ? (
               <div className="xml-specific-options" style={{ padding: '0 20px 20px' }}>

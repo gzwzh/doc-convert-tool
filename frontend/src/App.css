@@ -261,12 +261,29 @@ body {
   justify-content: center;
 }
 
+.nav-app-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .nav-app-title {
   font-size: 15px;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: 0.5px;
   line-height: 1.2;
+}
+
+.nav-app-version {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  background: var(--hover-bg);
+  padding: 0px 6px;
+  border-radius: 4px;
+  line-height: 1.4;
 }
 
 .nav-app-subtitle {
@@ -489,6 +506,8 @@ body {
   align-items: center;
   gap: 8px;
 }
+
+/* sidebar version removed */
 
 .sidebar-list {
   flex: 1;

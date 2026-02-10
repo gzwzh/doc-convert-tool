@@ -15,7 +15,7 @@ class ExcelConverter(Converter):
     """Excel转换器"""
     
     def _extract_tables_improved(self, page):
-        """改进的表格提取方法"""
+        """改进的表格提取方法（复刻自参考项目）"""
         tables = []
         
         # 使用多种策略提取表格
@@ -25,7 +25,7 @@ class ExcelConverter(Converter):
             if default_tables:
                 tables.extend(default_tables)
             
-            # 策略2: 调整表格设置，提高识别率
+            # 策略2: 调整表格设置，提高识别率（严格模式）
             table_settings = {
                 "vertical_strategy": "lines_strict",
                 "horizontal_strategy": "lines_strict",
@@ -44,7 +44,7 @@ class ExcelConverter(Converter):
                     if table not in tables:
                         tables.append(table)
             
-            # 策略3: 宽松设置，捕获更多可能的表格
+            # 策略3: 宽松设置，捕获更多可能的表格（宽松模式）
             loose_settings = {
                 "vertical_strategy": "text",
                 "horizontal_strategy": "text",
@@ -71,7 +71,7 @@ class ExcelConverter(Converter):
         return cleaned_tables
     
     def _is_valid_table_data(self, table):
-        """验证表格数据是否有效"""
+        """验证表格数据是否有效（复刻自参考项目）"""
         if not table or len(table) < 2:
             return False
         
@@ -86,11 +86,11 @@ class ExcelConverter(Converter):
                     if cell and str(cell).strip():
                         non_empty_cells += 1
         
-        # 至少50%的单元格有内容
-        return total_cells > 0 and (non_empty_cells / total_cells) >= 0.3
+        # 至少50%的单元格有内容 (参考项目为0.5)
+        return total_cells > 0 and (non_empty_cells / total_cells) >= 0.5
     
     def _clean_table_data(self, table):
-        """清理表格数据"""
+        """清理表格数据（复刻自参考项目）"""
         if not table:
             return None
         

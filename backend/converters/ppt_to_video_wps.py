@@ -130,22 +130,29 @@ class PptToVideoWpsConverter(BaseConverter):
             if not wps_app:
                 raise Exception("无法启动WPS演示。请确保已安装WPS Office")
             
-            # 设置WPS属性
+            # 设置WPS属性 - 尝试隐藏窗口
             try:
-                wps_app.Visible = True
-                # WPS可能不支持DisplayAlerts
-                try:
-                    wps_app.DisplayAlerts = False
-                except:
-                    pass
+                # WPS建议先可见再最小化
+                wps_app.Visible = 1
+                wps_app.WindowState = 2 # 最小化
+                wps_app.DisplayAlerts = 0
             except Exception as e:
-                print(f"[WpsPptToVideo] 设置属性警告: {e}")
+                print(f"[WpsPptToVideo] 无法设置WPS窗口状态: {e}")
             
             # 打开演示文稿
             abs_ppt_path = os.path.abspath(temp_ppt)
-            print(f"[WpsPptToVideo] 打开文件: {abs_ppt_path}")
+            print(f"[WpsPptToVideo] 打开文件 (Minimized): {abs_ppt_path}")
             
-            presentation = wps_app.Presentations.Open(abs_ppt_path)
+            # 优先使用 WithWindow=True 配合最小化，以确保 Export 可用
+            try:
+                presentation = wps_app.Presentations.Open(abs_ppt_path, ReadOnly=True, WithWindow=True)
+            except Exception as e:
+                print(f"[WpsPptToVideo] WPS Open WithWindow=True 失败: {e}，尝试无窗口模式...")
+                try:
+                    presentation = wps_app.Presentations.Open(abs_ppt_path, ReadOnly=True, WithWindow=False)
+                except Exception as e2:
+                    print(f"[WpsPptToVideo] WPS Open失败: {e2}")
+                    raise e2
             time.sleep(2)
             
             slide_count = presentation.Slides.Count

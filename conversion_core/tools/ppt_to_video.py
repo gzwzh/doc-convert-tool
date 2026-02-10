@@ -45,10 +45,23 @@ def convert_ppt_to_video(input_path: str, output_path: str = None, resolution: i
         except Exception as e:
             return {'success': False, 'error': f'无法启动 PowerPoint Application: {str(e)}。请确保已安装 Microsoft PowerPoint。'}
             
-        ppt_app.Visible = 1
-        
+        # 尝试隐藏 PowerPoint 窗口
+        try:
+            # 注意：在某些环境下，必须先 Visible = 1 才能设置 WindowState = 2 (最小化)
+            # 这比直接设置 Visible = 0 更稳定，能避免 "RPC 服务器不可用" 错误
+            ppt_app.Visible = 1
+            ppt_app.WindowState = 2 # ppWindowMinimized
+            ppt_app.DisplayAlerts = 0
+        except Exception as e:
+            print(f"[ppt_to_video] 无法设置窗口状态: {e}")
+            try:
+                ppt_app.Visible = 0
+            except:
+                pass
+            
         # 打开演示文稿
         try:
+            # 使用 WithWindow=False 尝试无窗口打开
             presentation = ppt_app.Presentations.Open(abs_input_path, WithWindow=False)
         except Exception as e:
             return {'success': False, 'error': f'无法打开 PPT 文件: {str(e)}'}

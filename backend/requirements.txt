@@ -11,6 +11,7 @@ html2image==2.0.4.3
 python-docx
 lxml
 pywin32; sys_platform == 'win32'
+comtypes; sys_platform == 'win32'
 pymupdf
 pdf2docx
 pdfminer.six

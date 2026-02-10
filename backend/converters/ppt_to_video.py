@@ -131,32 +131,52 @@ class PptToVideoConverter(BaseConverter):
                 ppt_app = win32com.client.Dispatch("PowerPoint.Application")
                 version = ppt_app.Version
                 self._log('info', f"PowerPoint版本: {version}")
-                ppt_app.Visible = 1
-                ppt_app.DisplayAlerts = 0
+                
+                # 尝试隐藏窗口
+                try:
+                    ppt_app.Visible = 1
+                    ppt_app.WindowState = 2 # 最小化
+                    ppt_app.DisplayAlerts = 0
+                except Exception as e:
+                    self._log('warning', f"无法设置窗口状态: {e}")
             except Exception as e:
                 self._log('error', f"PowerPoint启动失败: {e}")
                 self._log('info', "清理残留进程...")
                 os.system("taskkill /F /IM POWERPNT.EXE")
                 time.sleep(2)
                 ppt_app = win32com.client.Dispatch("PowerPoint.Application")
-                ppt_app.Visible = 1
-                ppt_app.DisplayAlerts = 0
-                self._log('info', "PowerPoint重启成功")
                 
+                # 尝试隐藏窗口
+                try:
+                    ppt_app.Visible = 1
+                    ppt_app.WindowState = 2 # 最小化
+                    ppt_app.DisplayAlerts = 0
+                except Exception as e:
+                    self._log('warning', f"无法设置窗口状态: {e}")
+                self._log('info', "PowerPoint重启成功")
+            
             self.update_progress(input_path, 20)
             
             # 打开演示文稿
             try:
-                self._log('info', f"打开演示文稿: {working_input_path}")
-                self._log('info', f"文件存在: {os.path.exists(working_input_path)}")
-                self._log('info', f"文件大小: {os.path.getsize(working_input_path)} bytes")
-                
-                presentation = ppt_app.Presentations.Open(
-                    working_input_path, 
-                    ReadOnly=True,
-                    Untitled=False,
-                    WithWindow=True
-                )
+                self._log('info', f"打开演示文稿 (Minimized): {working_input_path}")
+                # 对于旧版 PowerPoint (如 2007/12.0)，WithWindow=False 可能导致转换失败
+                # 因此我们优先使用 WithWindow=True，配合之前的 WindowState=2 (最小化) 来实现隐藏
+                try:
+                    presentation = ppt_app.Presentations.Open(
+                        working_input_path, 
+                        ReadOnly=True,
+                        Untitled=False,
+                        WithWindow=True
+                    )
+                except Exception as e:
+                    self._log('warning', f"Open WithWindow=True 失败: {e}，尝试无窗口模式...")
+                    presentation = ppt_app.Presentations.Open(
+                        working_input_path, 
+                        ReadOnly=True,
+                        Untitled=False,
+                        WithWindow=False
+                    )
                 time.sleep(2)
                 
                 slide_count = presentation.Slides.Count

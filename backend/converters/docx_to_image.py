@@ -25,26 +25,21 @@ class DocxToImageConverter(BaseConverter):
 
     def convert(self, input_path: str, output_path: str, **options) -> Dict[str, Any]:
         """将 DOCX 转换为图片（通过 PDF 中转）"""
-        temp_pdf_path = None
+        self.validate_input(input_path)
+        self.update_progress(input_path, 5)
+
+        # 默认选项
+        if 'quality' not in options:
+            options['quality'] = 95
+        if 'auto_crop' not in options:
+            options['auto_crop'] = True
+
+        base_dir = os.path.dirname(output_path) or os.getcwd()
+        base_name = os.path.splitext(os.path.basename(output_path))[0]
+        temp_pdf_path = os.path.join(base_dir, base_name + "_temp.pdf")
+
         try:
-            self.validate_input(input_path)
-            self.update_progress(input_path, 5)
-
-            base_dir = os.path.dirname(output_path) or os.getcwd()
-            base_name = os.path.splitext(os.path.basename(output_path))[0]
-            temp_pdf_path = os.path.join(base_dir, base_name + "_temp.pdf")
-
-            target_ext = output_path.split('.')[-1].lower()
-            if target_ext == 'jpeg':
-                target_ext = 'jpg'
-
-            if target_ext == 'jpg':
-                temp_image_path = os.path.join(base_dir, base_name + "_temp.png")
-            else:
-                temp_image_path = output_path
-
             print(f"[DocxToImage] 开始转换: {input_path}")
-            print(f"[DocxToImage] 选项: {options}")
             
             # 步骤1: DOCX → PDF (5% ~ 50%)
             self.update_progress(input_path, 10)
@@ -52,34 +47,10 @@ class DocxToImageConverter(BaseConverter):
             self.update_progress(input_path, 50)
             
             # 步骤2: PDF → Image (50% ~ 100%)
-            # JPG 先转为 PNG，再转为 JPG，沿用 PNG 的背景逻辑
-            result = self.image_converter.convert(temp_pdf_path, temp_image_path, **options)
-
-            if target_ext == 'jpg':
-                source_image_path = result.get('output_path', temp_image_path)
-                try:
-                    img = Image.open(source_image_path)
-                    if img.mode != 'RGB':
-                        img = img.convert('RGB')
-                    quality = options.get('quality', 85)
-                    img.save(output_path, 'JPEG', quality=quality, optimize=True)
-                    img.close()
-                    if os.path.exists(source_image_path):
-                        try:
-                            os.remove(source_image_path)
-                        except Exception:
-                            pass
-                    result['output_path'] = output_path
-                except Exception as e:
-                    print(f"[DocxToImage] PNG 转 JPG 失败: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    raise
-
+            result = self.image_converter.convert(temp_pdf_path, output_path, **options)
             result['method'] = 'docx_via_pdf'
             
             print(f"[DocxToImage] 转换完成: {result.get('output_path')}")
-            
             return result
             
         except Exception as e:

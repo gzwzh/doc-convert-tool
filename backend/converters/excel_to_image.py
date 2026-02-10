@@ -18,9 +18,13 @@ class ExcelToImageConverter(BaseConverter):
         self.validate_input(input_path)
         self.update_progress(input_path, 5)
         
-        # 创建临时 PDF 文件路径
-        temp_dir = tempfile.gettempdir()
-        temp_pdf = os.path.join(temp_dir, f"{os.path.splitext(os.path.basename(input_path))[0]}_temp.pdf")
+        if 'auto_crop' not in options:
+            options['auto_crop'] = True
+        
+        print(f"[ExcelToImage] 转换选项: {options}")
+        
+        # 1. Excel -> PDF
+        temp_pdf = output_path + ".temp.pdf"
         
         try:
             # 1. Excel -> PDF
@@ -53,6 +57,15 @@ class ExcelToImageConverter(BaseConverter):
             self.pdf_to_image.progress_callback = img_progress
             
             # 传递选项（如 quality, merge, watermark 等）
+            # 优化：
+            # 1. 如果没有指定质量，默认使用高质量 (95)，避免文字模糊
+            # 2. 默认开启自动裁剪 (auto_crop)，移除 Excel 转 PDF 产生的多余空白
+            if 'quality' not in options:
+                options['quality'] = 95
+            
+            if 'auto_crop' not in options:
+                options['auto_crop'] = True
+                
             img_result = self.pdf_to_image.convert(temp_pdf, output_path, **options)
             
             return img_result

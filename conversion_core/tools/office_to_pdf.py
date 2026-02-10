@@ -175,7 +175,15 @@ class OfficeToPDF:
     
     @staticmethod
     def _convert_excel_with_com(input_path: str, output_path: str) -> Dict:
-        """Excel COM转换"""
+        """Excel COM转换 - 优化版
+        
+        主要优化点：
+        1. 智能选择纸张大小和方向（根据列数）
+        2. 优化缩放策略（平衡清晰度和完整性）
+        3. 自动调整列宽和行高
+        4. 合理的页边距设置
+        5. 高质量PDF导出
+        """
         try:
             import comtypes.client
             
@@ -185,8 +193,138 @@ class OfficeToPDF:
             
             try:
                 workbook = excel.Workbooks.Open(input_path)
-                # 0 = xlTypePDF
-                workbook.ExportAsFixedFormat(0, output_path)
+                
+                # 优化每个工作表的页面设置
+                for sheet in workbook.Worksheets:
+                    try:
+                        # 1. 精准获取实际使用区域
+                        used_range = None
+                        try:
+                            # 强制刷新 UsedRange
+                            _ = sheet.UsedRange.Rows.Count
+                            
+                            # 精准查找最后一行和最后一列
+                            last_row_cell = sheet.Cells.Find("*", SearchOrder=1, SearchDirection=2)
+                            last_col_cell = sheet.Cells.Find("*", SearchOrder=2, SearchDirection=2)
+                            
+                            if last_row_cell and last_col_cell:
+                                last_row = last_row_cell.Row
+                                last_col = last_col_cell.Column
+                                used_range = sheet.Range(sheet.Cells(1, 1), sheet.Cells(last_row, last_col))
+                            else:
+                                used_range = sheet.UsedRange
+                        except:
+                            used_range = sheet.UsedRange
+
+                        if not used_range:
+                            continue
+
+                        # 2. 先自动调整列宽和行高，确保内容完整显示
+                        try:
+                            used_range.Columns.AutoFit()
+                            used_range.Rows.AutoFit()
+                            # 增加15%的宽度余量，防止文字被截断
+                            for col_idx in range(1, min(used_range.Columns.Count + 1, 100)):
+                                try:
+                                    col = used_range.Columns[col_idx]
+                                    curr_width = col.ColumnWidth
+                                    if 0 < curr_width < 100:
+                                        col.ColumnWidth = curr_width * 1.15
+                                except:
+                                    continue
+                        except Exception as e:
+                            print(f"列宽调整失败: {e}")
+
+                        # 3. 智能选择纸张大小和方向
+                        setup = sheet.PageSetup
+                        
+                        # 计算内容宽度（列数）来决定纸张和方向
+                        col_count = used_range.Columns.Count
+                        
+                        # 根据列数智能选择纸张和方向
+                        if col_count <= 6:
+                            # 少列：A4纵向
+                            setup.PaperSize = 9  # xlPaperA4
+                            setup.Orientation = 1  # xlPortrait
+                        elif col_count <= 10:
+                            # 中等列数：A4横向
+                            setup.PaperSize = 9  # xlPaperA4
+                            setup.Orientation = 2  # xlLandscape
+                        elif col_count <= 15:
+                            # 较多列：A3横向
+                            setup.PaperSize = 8  # xlPaperA3
+                            setup.Orientation = 2  # xlLandscape
+                        else:
+                            # 很多列：A3横向，允许多页宽
+                            setup.PaperSize = 8  # xlPaperA3
+                            setup.Orientation = 2  # xlLandscape
+
+                        # 4. 设置缩放策略
+                        if col_count <= 15:
+                            # 内容不太宽，强制适应1页宽
+                            setup.Zoom = False
+                            setup.FitToPagesWide = 1
+                            setup.FitToPagesTall = False
+                        else:
+                            # 内容很宽，使用固定缩放比例，保证清晰度
+                            setup.Zoom = 85  # 85%缩放，平衡清晰度和完整性
+                            setup.FitToPagesWide = False
+                            setup.FitToPagesTall = False
+                        
+                        # 5. 优化页边距（单位：磅）
+                        try:
+                            setup.LeftMargin = excel.Application.InchesToPoints(0.2)    # 约5mm
+                            setup.RightMargin = excel.Application.InchesToPoints(0.2)
+                            setup.TopMargin = excel.Application.InchesToPoints(0.3)     # 约7.5mm
+                            setup.BottomMargin = excel.Application.InchesToPoints(0.3)
+                            setup.HeaderMargin = excel.Application.InchesToPoints(0.1)
+                            setup.FooterMargin = excel.Application.InchesToPoints(0.1)
+                        except:
+                            # 降级方案：直接使用磅值
+                            setup.LeftMargin = 14
+                            setup.RightMargin = 14
+                            setup.TopMargin = 22
+                            setup.BottomMargin = 22
+                            setup.HeaderMargin = 7
+                            setup.FooterMargin = 7
+                        
+                        # 6. 居中显示
+                        setup.CenterHorizontally = True
+                        setup.CenterVertically = False
+
+                        # 7. 设置打印区域
+                        try:
+                            setup.PrintArea = used_range.Address
+                        except:
+                            pass
+                        
+                        # 8. 打印质量优化
+                        setup.PrintGridlines = False  # 不打印网格线
+                        setup.BlackAndWhite = False   # 彩色打印
+                        try:
+                            setup.PrintQuality = 600  # 高质量打印
+                        except:
+                            pass
+                                    
+                    except Exception as e_sheet:
+                        print(f"工作表 {sheet.Name} 优化失败: {e_sheet}")
+                        continue
+                
+                # 导出 PDF，使用最高质量设置
+                try:
+                    workbook.ExportAsFixedFormat(
+                        Type=0,  # xlTypePDF
+                        Filename=output_path,
+                        Quality=0,  # xlQualityStandard (最高质量)
+                        IncludeDocProperties=True,
+                        IgnorePrintAreas=False,
+                        OpenAfterPublish=False
+                    )
+                except Exception as e_export:
+                    print(f"ExportAsFixedFormat 失败: {e_export}")
+                    # 降级方案
+                    workbook.ExportAsFixedFormat(0, output_path)
+                
                 workbook.Close(False)
                 
                 return {
@@ -199,7 +337,7 @@ class OfficeToPDF:
                 
         except Exception as e:
             return {'success': False, 'error': f'Excel转换失败: {str(e)}'}
-    
+
     @staticmethod
     def _convert_ppt_with_com(input_path: str, output_path: str) -> Dict:
         """PPT COM转换"""

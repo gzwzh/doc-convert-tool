@@ -67,7 +67,10 @@ function ToolHeader() {
         <div className="nav-logo-wrapper">
           <img src="app.ico" alt="Logo" className="nav-app-icon" />
           <div className="nav-app-info">
-            <div className="nav-app-title">文档转换器</div>
+            <div className="nav-app-title-wrapper">
+              <div className="nav-app-title">文档转换器</div>
+              <span className="nav-app-version">v1.0.0</span>
+            </div>
             <div className="nav-app-subtitle">鲲穹AI旗下产品</div>
           </div>
         </div>

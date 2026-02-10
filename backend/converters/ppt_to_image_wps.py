@@ -168,27 +168,81 @@ class PptToImageWpsConverter(BaseConverter):
             'converter': self.office_type
         }
     
+    def _kill_process(self, process_name: str):
+        """强制结束进程"""
+        try:
+            os.system(f"taskkill /f /im {process_name} >nul 2>&1")
+        except:
+            pass
+
     def _ppt_to_images_powerpoint(self, ppt_path: str, format_type: str) -> list:
         """使用PowerPoint导出图片"""
         
         import win32com.client
         import pythoncom
+        import tempfile
+        import shutil
         
+        # 转换前尝试清理残留进程
+        self._kill_process("POWERPNT.EXE")
+        time.sleep(1)
+        
+        # 确保COM在当前线程初始化
         pythoncom.CoInitialize()
         ppt_app = None
         presentation = None
+        temp_input_path = None
         
         try:
             abs_path = os.path.abspath(ppt_path)
+            if not os.path.exists(abs_path):
+                raise Exception(f"文件不存在: {abs_path}")
             
-            # 启动PowerPoint
-            ppt_app = win32com.client.Dispatch("PowerPoint.Application")
-            
-            # 打开文件
+            # 复制到临时文件以避免权限/锁定问题
+            temp_input_path = os.path.join(tempfile.gettempdir(), f"temp_ppt_{int(time.time())}{os.path.splitext(ppt_path)[1]}")
+            shutil.copy2(abs_path, temp_input_path)
+            print(f"[PptToImageWps] 临时文件已创建: {temp_input_path}")
+                
+            print(f"[PptToImageWps] 启动 PowerPoint...")
+            # 使用DispatchEx创建新实例，避免复用可能有问题的实例
             try:
-                presentation = ppt_app.Presentations.Open(abs_path, ReadOnly=1)
+                ppt_app = win32com.client.DispatchEx("PowerPoint.Application")
             except:
-                presentation = ppt_app.Presentations.Open(abs_path)
+                # 如果DispatchEx失败，回退到Dispatch
+                ppt_app = win32com.client.Dispatch("PowerPoint.Application")
+            
+            # 设置PowerPoint属性
+            try:
+                # 优先显示并最小化，这在旧版 PowerPoint 中最稳定
+                ppt_app.Visible = 1
+                ppt_app.WindowState = 2 # 最小化
+                ppt_app.DisplayAlerts = 0
+            except Exception as e:
+                print(f"[PptToImageWps] 无法设置PowerPoint窗口状态: {e}")
+                
+            # 打开文件
+            print(f"[PptToImageWps] 打开文件 (Minimized): {temp_input_path}")
+            try:
+                # 对于旧版 PowerPoint (如 2007/12.0)，WithWindow=False 可能导致 Export 失败
+                # 因此我们优先使用 WithWindow=True，配合之前的 WindowState=2 (最小化) 来实现隐藏
+                presentation = ppt_app.Presentations.Open(
+                    FileName=temp_input_path,
+                    ReadOnly=True,
+                    Untitled=False,
+                    WithWindow=True
+                )
+            except Exception as e:
+                print(f"[PptToImageWps] Open WithWindow=True 失败: {e}, 尝试无窗口模式")
+                try:
+                    presentation = ppt_app.Presentations.Open(
+                        FileName=temp_input_path,
+                        ReadOnly=True,
+                        Untitled=False,
+                        WithWindow=False
+                    )
+                except Exception as e2:
+                    print(f"[PptToImageWps] Open失败: {e2}")
+                    raise e2
             
             time.sleep(1)
             
@@ -199,22 +253,77 @@ class PptToImageWpsConverter(BaseConverter):
             temp_dir = os.path.join(os.path.dirname(ppt_path), f"temp_images_{int(time.time())}")
             os.makedirs(temp_dir, exist_ok=True)
             
-            # 导出图片
+            # 策略调整：优先使用 Export 逐页导出以保证清晰度 (1920x1080)
+            # 只有当 Export 失败时，才回退到 SaveAs
+            print(f"[PptToImageWps] 尝试逐页高清导出 (1920x1080)...")
             image_files = []
-            for i in range(1, slide_count + 1):
-                slide = presentation.Slides(i)
-                output_file = os.path.join(temp_dir, f"slide_{i:04d}.{format_type.lower()}")
+            use_fallback = False
+
+            try:
+                for i in range(1, slide_count + 1):
+                    slide = presentation.Slides(i)
+                    output_file = os.path.join(temp_dir, f"slide_{i:04d}.{format_type.lower()}")
+                    
+                    try:
+                        # 尝试高清导出
+                        slide.Export(output_file, format_type, 1920, 1080)
+                    except Exception as e:
+                        # 如果高清导出失败，尝试默认导出
+                        # print(f"[PptToImageWps] Slide {i} 高清导出失败: {e}，尝试默认参数...")
+                        slide.Export(output_file, format_type)
+                    
+                    if os.path.exists(output_file):
+                        image_files.append(output_file)
+                        if i % 5 == 0 or i == slide_count:
+                            print(f"[PptToImageWps] 已导出 {i}/{slide_count}")
+                
+                if len(image_files) == 0:
+                    print(f"[PptToImageWps] 逐页导出未生成文件，切换到 SaveAs 模式")
+                    use_fallback = True
+                    
+            except Exception as e_export:
+                print(f"[PptToImageWps] 逐页导出失败: {e_export}，切换到 SaveAs 模式")
+                use_fallback = True
+                image_files = []
+
+            # 回退策略：SaveAs 批量导出
+            if use_fallback:
+                # ppSaveAsJPG = 17, ppSaveAsPNG = 18, ppSaveAsBMP = 19
+                save_format = 18 if format_type.upper() == 'PNG' else 17
+                print(f"[PptToImageWps] 尝试使用 SaveAs 批量导出...")
                 
                 try:
-                    slide.Export(output_file, format_type, 1920, 1080)
-                except:
-                    slide.Export(output_file, format_type)
-                
-                if os.path.exists(output_file):
-                    image_files.append(output_file)
-                    if i % 5 == 0 or i == slide_count:
-                        print(f"[PptToImageWps] 已导出 {i}/{slide_count}")
-            
+                    # SaveAs 会创建一个同名文件夹（如果目标是图片格式）
+                    # 构造一个不带扩展名的路径，PowerPoint会在其后创建文件夹
+                    save_as_path = os.path.join(temp_dir, "export")
+                    presentation.SaveAs(save_as_path, save_format)
+                    
+                    found_images = []
+                    # 检查 temp_dir 下是否有名为 export 的文件夹
+                    export_folder = save_as_path
+                    if os.path.exists(export_folder) and os.path.isdir(export_folder):
+                        # 遍历该文件夹
+                        for f in os.listdir(export_folder):
+                            if f.lower().endswith(f'.{format_type.lower()}'):
+                                found_images.append(os.path.join(export_folder, f))
+                    
+                    if found_images:
+                        print(f"[PptToImageWps] SaveAs 成功，找到 {len(found_images)} 张图片")
+                        # 简单按长度排序通常能把 Slide1 和 Slide10 分开 (Slide1.jpg vs Slide10.jpg)
+                        # 但为了更准确，我们尝试按数字排序
+                        try:
+                            import re
+                            def get_slide_num(filename):
+                                match = re.search(r'(\d+)', os.path.basename(filename))
+                                return int(match.group(1)) if match else 0
+                            image_files = sorted(found_images, key=get_slide_num)
+                        except:
+                            image_files = sorted(found_images, key=lambda x: len(x))
+                    else:
+                        print(f"[PptToImageWps] SaveAs 未找到图片")
+                except Exception as e_save:
+                    print(f"[PptToImageWps] SaveAs 失败: {e_save}")
+
             return image_files
             
         finally:
@@ -228,6 +337,13 @@ class PptToImageWpsConverter(BaseConverter):
                     ppt_app.Quit()
                 except:
                     pass
+            # 清理临时输入文件
+            if temp_input_path and os.path.exists(temp_input_path):
+                try:
+                    time.sleep(0.5)
+                    os.remove(temp_input_path)
+                except:
+                    pass
             pythoncom.CoUninitialize()
     
     def _ppt_to_images_wps(self, ppt_path: str, format_type: str) -> list:
@@ -235,22 +351,59 @@ class PptToImageWpsConverter(BaseConverter):
         
         import win32com.client
         import pythoncom
+        import tempfile
+        import shutil
+        
+        # 转换前尝试清理残留进程
+        self._kill_process("wps.exe")
         
         pythoncom.CoInitialize()
         wps_app = None
         presentation = None
+        temp_input_path = None
         
         try:
             abs_path = os.path.abspath(ppt_path)
+            if not os.path.exists(abs_path):
+                raise Exception(f"文件不存在: {abs_path}")
             
-            # 启动WPS - 不设置Visible属性
+            # 复制到临时文件以避免权限/锁定问题
+            temp_input_path = os.path.join(tempfile.gettempdir(), f"temp_wps_{int(time.time())}{os.path.splitext(ppt_path)[1]}")
+            shutil.copy2(abs_path, temp_input_path)
+            print(f"[PptToImageWps] 临时文件已创建: {temp_input_path}")
+            
+            print(f"[PptToImageWps] 启动 WPS ({self.office_type})...")
+            # 启动WPS
             wps_app = win32com.client.Dispatch(self.office_type)
             
-            # 打开文件
+            # WPS建议先可见再最小化
             try:
-                presentation = wps_app.Presentations.Open(abs_path, ReadOnly=1)
-            except:
-                presentation = wps_app.Presentations.Open(abs_path)
+                wps_app.Visible = 1
+                wps_app.WindowState = 2 # 最小化
+                wps_app.DisplayAlerts = 0
+            except Exception as e:
+                print(f"[PptToImageWps] 无法设置WPS窗口状态: {e}")
+            
+            # 打开文件
+            print(f"[PptToImageWps] WPS打开文件 (Minimized): {temp_input_path}")
+            try:
+                # 优先使用 WithWindow=True 配合最小化，以确保 Export 可用
+                presentation = wps_app.Presentations.Open(
+                    FileName=temp_input_path,
+                    ReadOnly=True,
+                    WithWindow=True
+                )
+            except Exception as e:
+                print(f"[PptToImageWps] WPS Open WithWindow=True 失败: {e}, 尝试无窗口模式")
+                try:
+                    presentation = wps_app.Presentations.Open(
+                        FileName=temp_input_path,
+                        ReadOnly=True,
+                        WithWindow=False
+                    )
+                except Exception as e2:
+                    print(f"[PptToImageWps] WPS Open失败: {e2}")
+                    raise e2
             
             time.sleep(1)
             
@@ -292,6 +445,12 @@ class PptToImageWpsConverter(BaseConverter):
             if wps_app:
                 try:
                     wps_app.Quit()
+                except:
+                    pass
+            # 清理临时输入文件
+            if temp_input_path and os.path.exists(temp_input_path):
+                try:
+                    os.remove(temp_input_path)
                 except:
                     pass
             pythoncom.CoUninitialize()

@@ -175,11 +175,21 @@ class PptToVideoSmartConverter(BaseConverter):
             except:
                 pass
     
+    def _kill_process(self, process_name: str):
+        """强制结束进程"""
+        try:
+            os.system(f"taskkill /f /im {process_name} >nul 2>&1")
+        except:
+            pass
+
     def _ppt_to_images_powerpoint(self, ppt_path: str, output_dir: str) -> list:
         """使用PowerPoint导出图片"""
         
         import win32com.client
         import pythoncom
+        
+        # 转换前尝试清理残留进程
+        self._kill_process("POWERPNT.EXE")
         
         pythoncom.CoInitialize()
         ppt_app = None
@@ -188,20 +198,43 @@ class PptToVideoSmartConverter(BaseConverter):
         try:
             # 使用绝对路径
             abs_path = os.path.abspath(ppt_path)
+            if not os.path.exists(abs_path):
+                raise Exception(f"文件不存在: {abs_path}")
+            
             print(f"[SmartPptToVideo] 文件路径: {abs_path}")
             
             # 启动PowerPoint
-            ppt_app = win32com.client.Dispatch("PowerPoint.Application")
-            ppt_app.Visible = 0
-            ppt_app.DisplayAlerts = 0
-            
-            # 尝试打开文件 - 使用最简单的参数
             try:
-                presentation = ppt_app.Presentations.Open(abs_path, ReadOnly=1)
+                ppt_app = win32com.client.Dispatch("PowerPoint.Application")
             except Exception as e:
-                print(f"[SmartPptToVideo] Open失败: {e}")
-                # 尝试不带参数
-                presentation = ppt_app.Presentations.Open(abs_path)
+                print(f"[SmartPptToVideo] Dispatch PowerPoint.Application 失败: {e}")
+                # 尝试强制重启
+                self._kill_process("POWERPNT.EXE")
+                time.sleep(1)
+                ppt_app = win32com.client.Dispatch("PowerPoint.Application")
+            
+            # 尝试隐藏PowerPoint窗口
+            try:
+                # 注意：有些版本必须先 Visible = 1 才能设置 WindowState
+                ppt_app.Visible = 1 
+                ppt_app.WindowState = 2 # 最小化
+                ppt_app.DisplayAlerts = 0
+            except Exception as e:
+                print(f"[SmartPptToVideo] 设置窗口状态失败: {e}")
+            
+            # 尝试打开文件
+            try:
+                # 对于旧版 PowerPoint (如 2007/12.0)，WithWindow=False 可能导致 Export 失败
+                # 因此我们优先使用 WithWindow=True，配合之前的 WindowState=2 (最小化) 来实现隐藏
+                print(f"[SmartPptToVideo] 尝试打开文件 (Minimized): {abs_path}")
+                presentation = ppt_app.Presentations.Open(abs_path, ReadOnly=True, WithWindow=True)
+            except Exception as e:
+                print(f"[SmartPptToVideo] Open WithWindow=True 失败: {e}，尝试无窗口模式...")
+                try:
+                    presentation = ppt_app.Presentations.Open(abs_path, ReadOnly=True, WithWindow=False)
+                except Exception as e2:
+                    print(f"[SmartPptToVideo] Open完全失败: {e2}")
+                    raise e2
             
             time.sleep(1)
             
@@ -246,6 +279,9 @@ class PptToVideoSmartConverter(BaseConverter):
         import win32com.client
         import pythoncom
         
+        # 转换前尝试清理残留进程
+        self._kill_process("wps.exe")
+        
         pythoncom.CoInitialize()
         wps_app = None
         presentation = None
@@ -253,18 +289,42 @@ class PptToVideoSmartConverter(BaseConverter):
         try:
             # 使用绝对路径
             abs_path = os.path.abspath(ppt_path)
+            if not os.path.exists(abs_path):
+                raise Exception(f"文件不存在: {abs_path}")
+                
             print(f"[SmartPptToVideo] 文件路径: {abs_path}")
             
-            # 启动WPS - 不设置Visible属性，WPS不支持
-            wps_app = win32com.client.Dispatch(self.office_type)
+            # 启动WPS
+            try:
+                wps_app = win32com.client.Dispatch(self.office_type)
+            except Exception as e:
+                print(f"[SmartPptToVideo] Dispatch WPS 失败: {e}")
+                self._kill_process("wps.exe")
+                time.sleep(1)
+                wps_app = win32com.client.Dispatch(self.office_type)
+            
+            # 尝试隐藏WPS窗口
+            try:
+                # WPS 建议先 Visible=True 再最小化，或者直接尝试 Visible=False
+                # 如果是 RPC 服务器不可用，通常是因为 Visible=0 导致崩溃
+                wps_app.Visible = 1
+                wps_app.WindowState = 2 # 最小化
+                wps_app.DisplayAlerts = 0
+            except Exception as e:
+                print(f"[SmartPptToVideo] 无法设置WPS窗口状态: {e}")
             
             # 尝试打开文件
             try:
-                presentation = wps_app.Presentations.Open(abs_path, ReadOnly=1)
+                print(f"[SmartPptToVideo] WPS尝试打开 (Minimized): {abs_path}")
+                # WPS 同样优先使用 WithWindow=True 配合最小化，以确保 Export 可用
+                presentation = wps_app.Presentations.Open(abs_path, ReadOnly=True, WithWindow=True)
             except Exception as e:
-                print(f"[SmartPptToVideo] Open失败: {e}")
-                # 尝试不带参数
-                presentation = wps_app.Presentations.Open(abs_path)
+                print(f"[SmartPptToVideo] WPS Open WithWindow=True 失败: {e}，尝试无窗口模式...")
+                try:
+                    presentation = wps_app.Presentations.Open(abs_path, ReadOnly=True, WithWindow=False)
+                except Exception as e2:
+                    print(f"[SmartPptToVideo] WPS Open完全失败: {e2}")
+                    raise e2
             
             time.sleep(1)
             

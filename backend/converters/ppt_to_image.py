@@ -18,9 +18,14 @@ class PptToImageConverter(BaseConverter):
         self.validate_input(input_path)
         self.update_progress(input_path, 5)
         
-        # 创建临时 PDF 文件路径
-        temp_dir = tempfile.gettempdir()
-        temp_pdf = os.path.join(temp_dir, f"{os.path.splitext(os.path.basename(input_path))[0]}_temp.pdf")
+        # 默认选项
+        if 'quality' not in options:
+            options['quality'] = 95
+        if 'auto_crop' not in options:
+            options['auto_crop'] = True
+            
+        # 1. PPT -> PDF
+        temp_pdf = output_path + ".temp.pdf"
         
         try:
             # 1. PPT -> PDF

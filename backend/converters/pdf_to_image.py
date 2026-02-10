@@ -1,7 +1,7 @@
 import fitz
 import os
 import zipfile
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageChops, ImageStat
 from .base import BaseConverter
 from typing import Dict, Any, List
 
@@ -40,6 +40,7 @@ class PdfToImageConverter(BaseConverter):
             quality = options.get('quality', 85)  # 1-100
             merge = options.get('merge', True)  # 默认合并为长图
             background_color = options.get('background_color', '#ffffff')
+            auto_crop = options.get('auto_crop', True)  # 默认自动裁剪空白
             
             # 水印选项
             watermark_text = options.get('watermark_text', '')
@@ -101,6 +102,14 @@ class PdfToImageConverter(BaseConverter):
                 else:
                     pix = page.get_pixmap(matrix=mat, alpha=False)
                     img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                
+                # 自动裁剪空白边距
+                if auto_crop:
+                    # 检查是否完全空白，如果是则跳过
+                    if self._is_image_empty(img):
+                        print(f"[PdfToImage] 第 {page_num + 1} 页为空白，已跳过")
+                        continue
+                    img = self._crop_to_content(img)
                 
                 images.append(img)
                 
@@ -176,6 +185,71 @@ class PdfToImageConverter(BaseConverter):
             self.cleanup_on_error(output_path)
             raise Exception(f"PDF to Image conversion failed: {str(e)}")
     
+    def _is_image_empty(self, img: Image.Image, threshold: int = 10) -> bool:
+        """检查图片是否为空白（全背景色）"""
+        try:
+            if img.mode != 'RGB':
+                temp_img = img.convert('RGB')
+            else:
+                temp_img = img
+                
+            bg_color = temp_img.getpixel((0, 0))
+            bg = Image.new(temp_img.mode, temp_img.size, bg_color)
+            diff = ImageChops.difference(temp_img, bg)
+            diff_gray = diff.convert('L')
+            
+            # 如果最大差异小于阈值，认为是空白
+            stat = ImageStat.Stat(diff_gray)
+            return stat.max[0] < threshold
+        except Exception:
+            return False
+
+    def _crop_to_content(self, img: Image.Image, padding: int = 20) -> Image.Image:
+        """裁剪图片中的空白边距（增强版：带阈值处理）"""
+        try:
+            # 转换为 RGB 以便计算背景
+            if img.mode != 'RGB':
+                temp_img = img.convert('RGB')
+            else:
+                temp_img = img
+
+            # 获取背景颜色（假设左上角第一个像素是背景）
+            bg_color = temp_img.getpixel((0, 0))
+            
+            # 使用差异图和阈值来识别内容
+            # 创建纯背景图
+            bg = Image.new(temp_img.mode, temp_img.size, bg_color)
+            
+            # 计算差异
+            diff = ImageChops.difference(temp_img, bg)
+            
+            # 转换为灰度图以简化阈值处理
+            diff_gray = diff.convert('L')
+            
+            # 阈值处理：如果差异小于 10，则认为是背景（处理抗锯齿等微小差异）
+            # point() 映射：小于 10 的变 0，大于等于 10 的变 255
+            mask = diff_gray.point(lambda x: 0 if x < 10 else 255)
+            
+            # 获取内容边界框
+            bbox = mask.getbbox()
+            
+            if bbox:
+                print(f"[PdfToImage] 裁剪区域: {bbox}, 原图大小: {img.size}")
+                # 加上一些内边距
+                left, top, right, bottom = bbox
+                left = max(0, left - padding)
+                top = max(0, top - padding)
+                right = min(img.width, right + padding)
+                bottom = min(img.height, bottom + padding)
+                
+                return img.crop((left, top, right, bottom))
+            else:
+                print("[PdfToImage] 未检测到内容，跳过裁剪")
+            return img
+        except Exception as e:
+            print(f"[PdfToImage] 裁剪失败: {e}")
+            return img
+
     def _apply_background_color(self, img: Image.Image, color: str) -> Image.Image:
         try:
             if color.startswith('#'):
