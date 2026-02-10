@@ -1,0 +1,8 @@
+{
+  "server_url": "http://software.kunqiongai.com:8000",
+  "software_id": "10031",
+  "current_version": "1.0.0",
+  "auto_check_update": true,
+  "auto_download": false,
+  "auto_install": false
+}

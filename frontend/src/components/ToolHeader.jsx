@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import { Avatar } from 'antd';
 import { UserOutlined, LoadingOutlined } from '@ant-design/icons';
@@ -11,9 +11,25 @@ import '../App.css';
 function ToolHeader() {
   const { isLoggedIn, userInfo, isPolling, showLoginModal, init } = useUserStore();
   const { theme, toggleTheme } = useTheme();
+  const [appVersion, setAppVersion] = useState('v1.0.0');
 
   useEffect(() => {
     init();
+    // 获取真实版本号
+    const fetchVersion = async () => {
+      if (window.electronAPI && window.electronAPI.getVersion) {
+        try {
+          const version = await window.electronAPI.getVersion();
+          console.log('Current version from system:', version);
+          if (version) {
+            setAppVersion(`v${version}`);
+          }
+        } catch (err) {
+          console.error('Failed to get version:', err);
+        }
+      }
+    };
+    fetchVersion();
   }, [init]);
 
   const renderUserArea = () => {
@@ -45,19 +61,19 @@ function ToolHeader() {
   // 窗口控制逻辑
   const handleMin = () => {
     if (window.electronAPI) {
-      window.electronAPI.minimizeWindow();
+      window.electronAPI.windowMinimize();
     }
   };
 
   const handleMax = () => {
     if (window.electronAPI) {
-      window.electronAPI.maximizeWindow();
+      window.electronAPI.windowMaximize();
     }
   };
 
   const handleClose = () => {
     if (window.electronAPI) {
-      window.electronAPI.closeWindow();
+      window.electronAPI.windowClose();
     }
   };
 
@@ -69,7 +85,7 @@ function ToolHeader() {
           <div className="nav-app-info">
             <div className="nav-app-title-wrapper">
               <div className="nav-app-title">文档转换器</div>
-              <span className="nav-app-version">v1.0.0</span>
+              <span className="nav-app-version">{appVersion}</span>
             </div>
             <div className="nav-app-subtitle">鲲穹AI旗下产品</div>
           </div>

@@ -1,14 +1,27 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// 暴露安全的 API 给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
-  selectDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
-  showSaveDialog: (options) => ipcRenderer.invoke('dialog:showSaveDialog', options),
-  saveFile: (filePath, buffer) => ipcRenderer.invoke('file:save', filePath, buffer),
-  downloadFile: (url, targetDir, filename) => ipcRenderer.invoke('file:download', url, targetDir, filename),
-  minimizeWindow: () => ipcRenderer.send('window-minimize'),
-  maximizeWindow: () => ipcRenderer.send('window-maximize'),
-  closeWindow: () => ipcRenderer.send('window-close'),
-  getBackendBaseUrl: () => ipcRenderer.invoke('backend:getBaseUrl'),
-  getResourceUrl: (filename) => ipcRenderer.invoke('resource:getUrl', filename),
-  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url)
+  // 获取版本号
+  getVersion: () => ipcRenderer.invoke('get-version'),
+  
+  // 检查更新
+  checkUpdate: () => ipcRenderer.invoke('check-update'),
+  
+  // 窗口控制
+  windowMinimize: () => ipcRenderer.invoke('window-minimize'),
+  windowMaximize: () => ipcRenderer.invoke('window-maximize'),
+  windowClose: () => ipcRenderer.invoke('window-close'),
+  windowIsMaximized: () => ipcRenderer.invoke('window-is-maximized'),
+  
+  // 监听窗口状态变化
+  onWindowMaximized: (callback) => {
+    ipcRenderer.on('window-maximized', (event, isMaximized) => callback(isMaximized));
+  },
+  
+  // 平台信息
+  platform: process.platform,
+  
+  // 是否为开发模式
+  isDev: process.env.NODE_ENV === 'development'
 });

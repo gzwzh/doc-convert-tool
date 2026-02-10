@@ -1,11 +1,17 @@
 appId: com.converttool.app
 productName: 文档转换器
+asar: true
+asarUnpack:
+  - "frontend/dist/**/*"
 directories:
   output: release/${version}
   buildResources: build
 extraResources:
   - from: backend/dist
     to: backend/dist
+  - version.txt
+  - update_config.json
+  - updater.exe
 files:
   - from: .
     filter:
@@ -15,6 +21,17 @@ files:
     to: frontend/dist
     filter:
       - "**/*"
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!**/node_modules/*.d.ts"
+  - "!**/node_modules/.bin"
+  - "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}"
+  - "!.editorconfig"
+  - "!**/._*"
+  - "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}"
+  - "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}"
+  - "!**/{appveyor.yml,.travis.yml,circle.yml}"
+  - "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
 win:
   icon: frontend/public/app.ico
   target:
@@ -34,7 +51,6 @@ nsis:
   shortcutName: 文档转换器
   allowElevation: true
   runAfterFinish: false
-  include: build/installer.nsh
   artifactName: installer/${productName}-Setup-${version}.${ext}
 portable:
   artifactName: portable/${productName}-Portable-${version}.${ext}
