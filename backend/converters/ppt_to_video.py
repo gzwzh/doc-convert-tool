@@ -6,6 +6,8 @@ from typing import Dict, Any
 from .base import BaseConverter
 import platform
 from datetime import datetime
+import tempfile
+from backend.utils.logger import setup_logger
 
 class PptToVideoConverter(BaseConverter):
     """PPT 转视频转换器 (仅限 Windows, 需要安装 PowerPoint)"""
@@ -13,37 +15,10 @@ class PptToVideoConverter(BaseConverter):
     def __init__(self):
         super().__init__()
         # 初始化日志
-        self._setup_logger()
-        
-    def _setup_logger(self):
-        """设置日志记录器"""
-        # 配置日志目录
-        log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')
-        os.makedirs(log_dir, exist_ok=True)
-        log_file = os.path.join(log_dir, f'ppt_to_video_{datetime.now().strftime("%Y%m%d")}.log')
-        
-        # 创建logger
-        self.logger = logging.getLogger('PptToVideo')
-        self.logger.setLevel(logging.DEBUG)
-        
-        # 清除已有的处理器
-        self.logger.handlers.clear()
-        
-        # 文件处理器
-        try:
-            file_handler = logging.FileHandler(log_file, encoding='utf-8', mode='a')
-            file_handler.setLevel(logging.DEBUG)
-            file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-            file_handler.setFormatter(file_formatter)
-            self.logger.addHandler(file_handler)
-            print(f"[PptToVideo] 日志文件: {log_file}")
-        except Exception as e:
-            print(f"[PptToVideo] 无法创建日志文件: {e}")
-            self.logger = None
+        self.logger = setup_logger('PptToVideo')
             
     def _log(self, level, message):
         """记录日志"""
-        print(f"[PptToVideo] {message}")  # 始终输出到控制台
         if self.logger:
             if level == 'info':
                 self.logger.info(message)
@@ -53,11 +28,9 @@ class PptToVideoConverter(BaseConverter):
                 self.logger.warning(message)
             elif level == 'debug':
                 self.logger.debug(message)
-    """PPT 转视频转换器 (仅限 Windows, 需要安装 PowerPoint)"""
+        else:
+            print(f"[PptToVideo] {message}")
     
-    def __init__(self):
-        super().__init__()
-        
     def convert(self, input_path: str, output_path: str, **options) -> Dict[str, Any]:
         self._log('info', "="*60)
         self._log('info', "开始PPT转视频转换")

@@ -20,7 +20,6 @@ function ToolHeader() {
       if (window.electronAPI && window.electronAPI.getVersion) {
         try {
           const version = await window.electronAPI.getVersion();
-          console.log('Current version from system:', version);
           if (version) {
             setAppVersion(`v${version}`);
           }

@@ -5,9 +5,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 获取版本号
   getVersion: () => ipcRenderer.invoke('get-version'),
   
-  // 检查更新
-  checkUpdate: () => ipcRenderer.invoke('check-update'),
-  
   // 窗口控制
   windowMinimize: () => ipcRenderer.invoke('window-minimize'),
   windowMaximize: () => ipcRenderer.invoke('window-maximize'),
@@ -22,6 +19,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 平台信息
   platform: process.platform,
   
+  // 外部打开 URL
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+
+  // 选择目录
+  selectDirectory: () => ipcRenderer.invoke('select-directory'),
+
+  // 下载文件
+  downloadFile: (url, dirPath, filename) => ipcRenderer.invoke('download-file', { url, dirPath, filename }),
+
   // 是否为开发模式
-  isDev: process.env.NODE_ENV === 'development'
+  isDev: process.env.NODE_ENV === 'development',
+
+  // 获取后端基础 URL
+  getBackendBaseUrl: () => ipcRenderer.invoke('get-backend-base-url')
 });

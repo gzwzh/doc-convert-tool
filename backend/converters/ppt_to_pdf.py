@@ -1,17 +1,21 @@
 from typing import Dict, Any
 import os
 import shutil
+import logging
 from .base import BaseConverter
 from conversion_core.core.converter_pdf import PDFConverter
 from conversion_core.config.default_config import PDF_CONVERTER_CONFIG
+from backend.utils.logger import setup_logger
 
 class PptToPdfConverter(BaseConverter):
     """PPT 转 PDF 转换器"""
     
     def __init__(self):
         super().__init__()
+        self.logger = setup_logger('PptToPdf')
 
     def convert(self, input_path: str, output_path: str, **options) -> Dict[str, Any]:
+        self.logger.info(f"开始 PPT 转 PDF: {input_path}")
         self.validate_input(input_path)
         self.update_progress(input_path, 5)
         
@@ -35,6 +39,7 @@ class PptToPdfConverter(BaseConverter):
         
         if result.get('success'):
             generated_file = result.get('output_file')
+            self.logger.info(f"转换成功, 生成文件: {generated_file}")
             if generated_file and os.path.exists(generated_file):
                 # 如果生成的路径与目标路径不一致，移动文件
                 if os.path.abspath(generated_file) != os.path.abspath(output_path):
@@ -50,4 +55,6 @@ class PptToPdfConverter(BaseConverter):
             else:
                 raise Exception("Conversion reported success but output file not found")
         else:
-            raise Exception(result.get('error', 'Conversion failed'))
+            error_msg = result.get('error', 'Conversion failed')
+            self.logger.error(f"PPT 转 PDF 失败: {error_msg}")
+            raise Exception(error_msg)

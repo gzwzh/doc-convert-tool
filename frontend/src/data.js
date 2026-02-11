@@ -87,9 +87,9 @@ export const categories = {
           description: 'Convert HTML to TEXT'
         },
         {
-          name: 'HTML To MARKDOWN',
+          name: 'HTML To MD',
           icon: CodeOutlined,
-          description: 'Convert HTML to MARKDOWN'
+          description: 'Convert HTML to MD'
         },
         {
           name: 'HTML To JSON',

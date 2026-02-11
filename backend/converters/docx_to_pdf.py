@@ -2,27 +2,22 @@ import os
 import subprocess
 import shutil
 import html
+import logging
 from docx import Document
 from .base import BaseConverter
 from .html_to_pdf import HtmlToPdfConverter
 from typing import Dict, Any
-
+from backend.utils.logger import setup_logger
 
 class DocxToPdfConverter(BaseConverter):
-    """DOCX 到 PDF 转换器（优化版 - 参考 conversion_core）
-    
-    优化内容：
-    1. 添加进度回调支持
-    2. 多策略降级（Word → LibreOffice → HTML）
-    3. 更详细的错误信息
-    4. 支持页面设置选项
-    """
+    """DOCX 到 PDF 转换器（优化版 - 参考 conversion_core）"""
     
     def __init__(self):
         super().__init__()
         self.supported_formats = ['pdf']
         self.html_converter = HtmlToPdfConverter()
         self.soffice_path = self._find_libreoffice()
+        self.logger = setup_logger('DocxToPdf')
     
     def _find_libreoffice(self) -> str:
         """查找 LibreOffice 路径"""
@@ -63,6 +58,8 @@ class DocxToPdfConverter(BaseConverter):
             input_path = os.path.abspath(input_path)
             output_path = os.path.abspath(output_path)
             
+            self.logger.info(f"使用 Word 转换: {input_path} -> {output_path}")
+            
             # 启动 Word
             word = win32com.client.Dispatch("Word.Application")
             word.Visible = False
@@ -78,6 +75,7 @@ class DocxToPdfConverter(BaseConverter):
             return {'method': 'microsoft_word'}
             
         except Exception as e:
+            self.logger.error(f"Word 转换失败: {str(e)}")
             raise e
         finally:
             # 清理资源

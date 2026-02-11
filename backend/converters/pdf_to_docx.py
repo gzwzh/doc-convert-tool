@@ -2,21 +2,16 @@ from pdf2docx import Converter
 from .base import BaseConverter
 from typing import Dict, Any, List
 import os
+import logging
+from backend.utils.logger import setup_logger
 
 class PdfToDocxConverter(BaseConverter):
-    """PDF 到 DOCX 转换器（优化版 - 参考 conversion_core）
-    
-    优化内容：
-    1. 添加进度回调支持
-    2. 添加多策略降级（pdf2docx → PyMuPDF）
-    3. 添加页码范围选择
-    4. 添加图片提取选项
-    5. 更详细的错误处理
-    """
+    """PDF 到 DOCX 转换器（优化版 - 参考 conversion_core）"""
     
     def __init__(self):
         super().__init__()
         self.supported_formats = ['docx', 'doc']
+        self.logger = setup_logger('PdfToDocx')
     
     def convert(self, input_path: str, output_path: str, **options) -> Dict[str, Any]:
         """将 PDF 转换为 DOCX（多策略）"""
@@ -37,12 +32,13 @@ class PdfToDocxConverter(BaseConverter):
             
             # 解析页码范围 (此时还不知道总页数，先不传 total_pages)
             pages = self.parse_page_range(raw_page_range)
-            print(f"[PdfToDocx] Parsed pages: {pages}")
+            self.logger.info(f"解析后的页码范围: {pages}")
             
             self.update_progress(input_path, 10)
             
             # 策略1: 使用 pdf2docx（推荐，效果最好）
             try:
+                self.logger.info(f"尝试使用 pdf2docx 转换: {input_path}")
                 result = self._convert_with_pdf2docx(
                     input_path, output_path, 
                     extract_images=extract_images,
@@ -51,11 +47,12 @@ class PdfToDocxConverter(BaseConverter):
                 self.update_progress(input_path, 100)
                 return result
             except Exception as e1:
-                print(f"[pdf2docx failed] {e1}, trying PyMuPDF fallback...")
+                self.logger.warning(f"pdf2docx 转换失败: {e1}, 尝试 PyMuPDF 降级...")
                 self.update_progress(input_path, 30)
                 
                 # 策略2: 使用 PyMuPDF 降级方案
                 try:
+                    self.logger.info(f"尝试使用 PyMuPDF 降级方案: {input_path}")
                     result = self._convert_with_pymupdf(
                         input_path, output_path,
                         extract_images=extract_images,
@@ -66,6 +63,7 @@ class PdfToDocxConverter(BaseConverter):
                     result['warning'] = 'pdf2docx failed, used PyMuPDF fallback (basic text extraction)'
                     return result
                 except Exception as e2:
+                    self.logger.error(f"所有转换方法均失败: {e2}")
                     raise Exception(f"All conversion methods failed. pdf2docx: {str(e1)}, PyMuPDF: {str(e2)}")
             
         except Exception as e:

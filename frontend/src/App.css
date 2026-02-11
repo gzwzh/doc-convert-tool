@@ -375,6 +375,7 @@ body {
   padding: 32px 20px 20px 20px;
   /* Reduced bottom padding to match horizontal padding if needed, but flex gap handles spacing mostly. */
   gap: 20px;
+  overflow-y: auto;
   overflow-x: hidden;
 }
 
@@ -511,9 +512,9 @@ body {
 
 .sidebar-list {
   flex: 1;
+  min-height: 150px; /* 确保分类列表至少有一定高度可见 */
   overflow-y: auto;
   overflow-x: hidden;
-  /* 列表区域也强制隐藏横向滚动条 */
   display: flex;
   flex-direction: column;
   gap: 4px;

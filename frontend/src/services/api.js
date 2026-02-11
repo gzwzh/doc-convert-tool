@@ -63,6 +63,47 @@ const ensureBackendReady = async (baseUrl) => {
   return ready;
 };
 
+const handleResponse = async (response, apiBaseUrl, file) => {
+  if (!response.ok) {
+    let errorDetail = '转换失败';
+    try {
+      const errorData = await response.json();
+      errorDetail = errorData.detail || errorDetail;
+    } catch (e) {
+      errorDetail = `转换失败 (${response.status}: ${response.statusText})`;
+    }
+    
+    // 尝试获取诊断信息
+    try {
+      const diagResponse = await fetch(`${apiBaseUrl}/api/diagnostics`);
+      if (diagResponse.ok) {
+        const diagData = await diagResponse.json();
+        console.error('[API] 转换失败诊断信息:', diagData);
+        
+        // 针对不同文件类型给出更具体的错误建议
+        if (file) {
+          const fileName = file.name.toLowerCase();
+          if ((fileName.endsWith('.doc') || fileName.endsWith('.docx') || fileName.endsWith('.ppt') || fileName.endsWith('.pptx') || fileName.endsWith('.xls') || fileName.endsWith('.xlsx'))) {
+            if (diagData.office && !diagData.office.word && !diagData.office.excel && !diagData.office.ppt && !diagData.office.wps) {
+              errorDetail += '。请确保电脑已安装 Microsoft Office 或 WPS Office。';
+            }
+          }
+          if (fileName.endsWith('.html') || fileName.endsWith('.htm')) {
+            if (diagData.browsers && !diagData.browsers.chrome && !diagData.browsers.edge) {
+              errorDetail += '。请确保电脑已安装 Chrome 或 Edge 浏览器。';
+            }
+          }
+        }
+      }
+    } catch (diagError) {
+      console.warn('[API] 无法获取诊断信息:', diagError);
+    }
+    
+    throw new Error(errorDetail);
+  }
+  return await response.json();
+};
+
 /**
  * 转换 JSON 文件
  * @param {File} file - JSON 文件
@@ -90,12 +131,7 @@ export const convertJSON = async (file, targetFormat, options = {}) => {
       body: formData,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || '转换失败');
-    }
-
-    return await response.json();
+    return await handleResponse(response, apiBaseUrl, file);
   } catch (error) {
     console.error('Conversion error:', error);
     throw error;
@@ -122,12 +158,7 @@ export const convertXML = async (file, targetFormat, options = {}) => {
       body: formData,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || '转换失败');
-    }
-
-    return await response.json();
+    return await handleResponse(response, apiBaseUrl, file);
   } catch (error) {
     console.error('Conversion error:', error);
     throw error;
@@ -197,13 +228,7 @@ export const convertGeneral = async (file, targetFormat, options = {}) => {
       });
 
       clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || '转换失败');
-      }
-
-      return await response.json();
+      return await handleResponse(response, apiBaseUrl, file);
     } catch (error) {
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') {

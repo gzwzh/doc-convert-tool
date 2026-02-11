@@ -1,23 +1,18 @@
 from typing import Dict, Any
 import os
 import shutil
+import logging
 from .base import BaseConverter
+from backend.utils.logger import setup_logger
 
 class ExcelToPdfConverter(BaseConverter):
-    """Excel 转 PDF 转换器 - 优化版
-    
-    主要优化点：
-    1. 智能纸张选择（根据列数自动选择A4/A3和纵向/横向）
-    2. 优化缩放策略（平衡清晰度和完整性）
-    3. 自动调整列宽和行高（增加15%余量）
-    4. 合理的页边距设置
-    5. 高质量PDF导出（600 DPI）
-    """
+    """Excel 转 PDF 转换器 - 优化版"""
     
     def __init__(self):
         super().__init__()
         self.supported_formats = ['pdf']
         self.soffice_path = self._find_libreoffice()
+        self.logger = setup_logger('ExcelToPdf')
 
     def _find_libreoffice(self) -> str:
         """查找 LibreOffice 路径"""
@@ -44,6 +39,8 @@ class ExcelToPdfConverter(BaseConverter):
             # 转换为绝对路径
             input_path = os.path.abspath(input_path)
             output_path = os.path.abspath(output_path)
+            
+            self.logger.info(f"使用 Excel COM 转换: {input_path} -> {output_path}")
             
             # 启动 Excel
             excel = comtypes.client.CreateObject('Excel.Application')
@@ -187,6 +184,7 @@ class ExcelToPdfConverter(BaseConverter):
             return {'method': 'microsoft_excel'}
             
         except Exception as e:
+            self.logger.error(f"Excel COM 转换失败: {str(e)}")
             raise e
         finally:
             # 清理资源

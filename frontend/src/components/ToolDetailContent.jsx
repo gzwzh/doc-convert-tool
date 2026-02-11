@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import JSZip from 'jszip';
@@ -1059,7 +1059,7 @@ function ToolDetailContent({ toolName, onBack }) {
           <div className="detail-title-section">
             <h1 className="detail-title">{source}转{target}转换器</h1>
             <p className="detail-desc">
-              在线将{source} Word文档转换为{target}格式。免费工具维护文本格式。转换后，您可以下载并共享文档。
+              在线将{source} Word文档转换为{target}格式。免费工具维护文本格式。
             </p>
           </div>
         </div>

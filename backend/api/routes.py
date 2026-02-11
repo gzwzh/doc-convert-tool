@@ -4,11 +4,22 @@ from typing import Optional
 from backend.services.converter_service import ConverterService, UPLOAD_DIR
 from backend.utils.file_handler import FileHandler
 from backend.utils.validator import Validator
+from backend.utils.diagnostics import run_all_diagnostics
 
 router = APIRouter()
 converter_service = ConverterService()
 file_handler = FileHandler(UPLOAD_DIR)
 validator = Validator()
+
+@router.get("/health")
+async def health_check():
+    """健康检查"""
+    return {"status": "ok"}
+
+@router.get("/diagnostics")
+async def diagnostics():
+    """诊断环境接口"""
+    return run_all_diagnostics()
 
 @router.post("/convert/json")
 async def convert_json(

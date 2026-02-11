@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['updater.py'],
+    ['更新\\通用更新组件\\updater.py'],
     pathex=[],
     binaries=[],
     datas=[],
