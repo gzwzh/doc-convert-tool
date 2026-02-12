@@ -9,6 +9,8 @@ directories:
 extraResources:
   - from: backend/dist
     to: backend/dist
+  - from: resources/libreoffice
+    to: libreoffice
   - version.txt
   - update_config.json
   - updater.exe

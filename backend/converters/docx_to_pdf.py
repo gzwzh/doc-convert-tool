@@ -21,6 +21,13 @@ class DocxToPdfConverter(BaseConverter):
     
     def _find_libreoffice(self) -> str:
         """查找 LibreOffice 路径"""
+        # 1. 优先尝试集成路径 (resources/libreoffice)
+        from conversion_core.tools.office_to_pdf import get_bundled_libreoffice_path
+        bundled_path = get_bundled_libreoffice_path()
+        if bundled_path and os.path.exists(bundled_path):
+            return bundled_path
+
+        # 2. 尝试系统默认路径
         paths = [
             r"C:\Program Files\LibreOffice\program\soffice.exe",
             r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
@@ -29,7 +36,7 @@ class DocxToPdfConverter(BaseConverter):
             if os.path.exists(path):
                 return path
         
-        # Check system PATH (for Linux/Mac/Windows if added to PATH)
+        # 3. 检查环境变量 PATH
         return shutil.which("soffice") or shutil.which("libreoffice")
     
     def _has_word(self) -> bool:

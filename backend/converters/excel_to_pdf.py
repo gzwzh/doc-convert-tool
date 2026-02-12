@@ -16,6 +16,13 @@ class ExcelToPdfConverter(BaseConverter):
 
     def _find_libreoffice(self) -> str:
         """查找 LibreOffice 路径"""
+        # 1. 优先尝试集成路径 (resources/libreoffice)
+        from conversion_core.tools.office_to_pdf import get_bundled_libreoffice_path
+        bundled_path = get_bundled_libreoffice_path()
+        if bundled_path and os.path.exists(bundled_path):
+            return bundled_path
+
+        # 2. 尝试系统默认路径
         paths = [
             r"C:\Program Files\LibreOffice\program\soffice.exe",
             r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
@@ -23,6 +30,8 @@ class ExcelToPdfConverter(BaseConverter):
         for path in paths:
             if os.path.exists(path):
                 return path
+        
+        # 3. 检查环境变量 PATH
         return shutil.which("soffice")
 
     def _convert_with_excel(self, input_path: str, output_path: str) -> Dict[str, Any]:
@@ -257,19 +266,23 @@ class ExcelToPdfConverter(BaseConverter):
             print(f"[ExcelToPdf] Excel conversion failed: {e}")
         
         # 策略2: LibreOffice
-        try:
-            self.update_progress(input_path, 50)
-            result = self._convert_with_libreoffice(input_path, output_path)
-            self.update_progress(input_path, 100)
-            return {
-                'success': True,
-                'output_path': output_path,
-                'method': result['method'],
-                'size': self.get_output_size(output_path)
-            }
-        except Exception as e:
-            error_messages.append(f"LibreOffice failed: {str(e)}")
-            print(f"[ExcelToPdf] LibreOffice conversion failed: {e}")
+        if self.soffice_path:
+            try:
+                self.update_progress(input_path, 50)
+                result = self._convert_with_libreoffice(input_path, output_path)
+                self.update_progress(input_path, 100)
+                return {
+                    'success': True,
+                    'output_path': output_path,
+                    'method': result['method'],
+                    'size': self.get_output_size(output_path)
+                }
+            except Exception as e:
+                error_messages.append(f"LibreOffice failed: {str(e)}")
+                print(f"[ExcelToPdf] LibreOffice conversion failed: {e}")
+        else:
+            error_messages.append("LibreOffice not available")
+            print("[ExcelToPdf] LibreOffice not available")
             
         # 所有策略都失败
         return {

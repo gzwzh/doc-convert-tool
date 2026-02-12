@@ -42,15 +42,16 @@ def get_bundled_libreoffice_path() -> Optional[str]:
     """
     if is_frozen():
         # 打包环境: 从exe所在目录向上找到resources，再找libreoffice
+        # base_path 是 resources/backend/dist
         base_path = get_app_base_path()
-        # backend目录的上级是resources
-        resources_path = os.path.dirname(base_path)
+        # 向上跳两级到达 resources 目录
+        resources_path = os.path.dirname(os.path.dirname(base_path))
         libreoffice_path = os.path.join(resources_path, 'libreoffice', 'program', 'soffice.exe')
         if os.path.exists(libreoffice_path):
             return libreoffice_path
     else:
-        # 开发环境: 从backend目录向上找到项目根目录的resources
-        project_root = os.path.dirname(get_app_base_path())
+        # 开发环境: get_app_base_path() 已经是项目根目录
+        project_root = get_app_base_path()
         libreoffice_path = os.path.join(project_root, 'resources', 'libreoffice', 'program', 'soffice.exe')
         if os.path.exists(libreoffice_path):
             return libreoffice_path
