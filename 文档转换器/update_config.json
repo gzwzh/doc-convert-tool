@@ -1,0 +1,5 @@
+{
+  "software": "10031",
+  "version": "1.0.1",
+  "api_url": "http://software.kunqiongai.com:8000/api/v1/updates/check/"
+}

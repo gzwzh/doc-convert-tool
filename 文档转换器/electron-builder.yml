@@ -1,0 +1,58 @@
+appId: com.converttool.app
+productName: 文档转换器
+asar: true
+asarUnpack:
+  - "frontend/dist/**/*"
+directories:
+  output: release/${version}
+  buildResources: build
+extraResources:
+  - from: backend/dist
+    to: backend/dist
+  - from: resources/libreoffice
+    to: libreoffice
+  - version.txt
+  - update_config.json
+  - updater.exe
+files:
+  - from: .
+    filter:
+      - package.json
+      - electron/**/*
+  - from: frontend/dist
+    to: frontend/dist
+    filter:
+      - "**/*"
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!**/node_modules/*.d.ts"
+  - "!**/node_modules/.bin"
+  - "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}"
+  - "!.editorconfig"
+  - "!**/._*"
+  - "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}"
+  - "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}"
+  - "!**/{appveyor.yml,.travis.yml,circle.yml}"
+  - "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+win:
+  icon: frontend/public/app.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  unicode: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: 文档转换器
+  allowElevation: true
+  runAfterFinish: false
+  artifactName: installer/${productName}-Setup-${version}.${ext}
+portable:
+  artifactName: portable/${productName}-Portable-${version}.${ext}
