@@ -29,3 +29,29 @@ class FileHandler:
                 os.remove(file_path)
             except Exception:
                 pass
+
+    @staticmethod
+    def sanitize_filename(filename: str) -> str:
+        """
+        清理文件名，移除路径分隔符和非法字符
+        """
+        if not filename:
+            return "untitled"
+            
+        import re
+        # 1. 获取文件名部分 (处理路径注入)
+        filename = os.path.basename(filename)
+        
+        # 2. 移除Windows非法字符: < > : " / \ | ? *
+        filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
+        
+        # 3. 移除控制字符
+        filename = re.sub(r'[\x00-\x1f]', '', filename)
+        
+        # 4. 移除首尾空白和点
+        filename = filename.strip().strip('.')
+        
+        if not filename:
+            return "untitled"
+            
+        return filename

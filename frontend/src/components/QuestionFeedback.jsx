@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
-import './SoftwareCustomization.css'; // 复用样式
 
 const QuestionFeedback = () => {
+  const { t } = useTranslation();
   const [feedbackUrl, setFeedbackUrl] = useState('');
 
   useEffect(() => {
@@ -35,8 +36,7 @@ const QuestionFeedback = () => {
     <div
       className="sidebar-item software-customization-btn"
       onClick={handleClick}
-      title="点击进行问题反馈"
-      style={{ marginTop: '8px' }}
+      title={t('feedback.tooltip')}
     >
       <span className="software-customization-content">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -45,7 +45,7 @@ const QuestionFeedback = () => {
           <path d="M12 16h.01"></path>
           <path d="M12 7h.01"></path>
         </svg>
-        问题反馈
+        {t('feedback.title')}
       </span>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="external-link-icon">
         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>

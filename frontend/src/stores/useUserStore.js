@@ -90,7 +90,7 @@ export const useUserStore = create(
                         }
                         return true;
                     }
-                } catch (error) {
+                } catch {
                     // Polling errors are usually transient or ignored until timeout
                     return false;
                 }
@@ -103,7 +103,7 @@ export const useUserStore = create(
                     try {
                         await AuthService.logout(token);
                         message.info('已退出登录');
-                    } catch (e) {
+                    } catch {
                         // Logout error can be ignored locally
                     }
                 }

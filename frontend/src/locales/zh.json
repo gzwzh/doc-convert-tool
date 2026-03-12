@@ -1,0 +1,152 @@
+{
+  "common": {
+    "major_functions": "主要功能",
+    "doc_tools": "文档类"
+  },
+  "categories": {
+    "docx_converter": "DOCX 转换器",
+    "docx_converter_desc": "DOCX 转换器",
+    "html_converter": "HTML 转换器",
+    "html_converter_desc": "HTML 转换器",
+    "json_converter": "JSON 转换器",
+    "json_converter_desc": "JSON 转换器",
+    "pdf_converter": "PDF 转换器",
+    "pdf_converter_desc": "PDF 转换器",
+    "ppt_converter": "PPT 转换器",
+    "ppt_converter_desc": "PPT 转换器",
+    "excel_converter": "Excel 转换器",
+    "excel_converter_desc": "Excel 转换器",
+    "txt_converter": "TXT 转换器",
+    "txt_converter_desc": "TXT 转换器",
+    "xml_converter": "XML 转换器",
+    "xml_converter_desc": "XML 转换器"
+  },
+  "sidebar": {
+    "search_placeholder": "搜索功能...",
+    "no_results": "未找到相关功能"
+  },
+  "home": {
+    "title": "ConvertTool",
+    "subtitle": "简单、快速、安全的在线文件转换工具",
+    "categories": {
+      "docx": "DOCX 转换",
+      "docx_desc": "Word 文档转换为 PDF, 图片, 文本等",
+      "html": "HTML 转换",
+      "html_desc": "HTML 网页转换为 PDF, 图片, Markdown 等",
+      "json": "JSON 转换",
+      "json_desc": "JSON 数据转换为 YAML, XML, CSV, PDF 等",
+      "pdf": "PDF 转换",
+      "pdf_desc": "PDF 转换为 Word, 图片, 文本, HTML 等",
+      "txt": "TXT 转换",
+      "txt_desc": "纯文本转换为 PDF, 语音, CSV, HTML 等",
+      "xml": "XML 转换",
+      "xml_desc": "XML 数据转换为 JSON, YAML, CSV, PDF 等"
+    }
+  },
+  "customization": {
+    "title": "软件定制",
+    "tooltip": "点击咨询软件定制服务"
+  },
+  "feedback": {
+    "title": "问题反馈",
+    "tooltip": "点击进行问题反馈"
+  },
+  "ad": {
+    "loading": "加载中",
+    "brand": "鲲穹AI",
+    "slogan": "让办公更高效"
+  },
+  "loginModal": {
+    "title": "鲲穹账号登录",
+    "subtitle": "体验更多功能，请先登录",
+    "logged_in_as": "已登录鲲穹账户",
+    "logout": "退出当前账号",
+    "close": "关闭窗口",
+    "waiting_login": "等待登录...",
+    "browser_notice": "请在浏览器中完成登录验证",
+    "cancel_login": "取消登录",
+    "login_now": "立即登录",
+    "login_cancelled": "已取消登录",
+    "guest_title": "登录鲲穹账户",
+    "guest_subtitle": "登录后即可保存您的个性设置<br />并享受更多高级功能",
+    "later": "下次再说"
+  },
+  "header": {
+    "app_title": "文档转换器",
+    "app_subtitle": "鲲穹AI旗下产品",
+    "home": "我的主页",
+    "login": "登录",
+    "logging_in": "登录中..."
+  },
+  "dashboard": {
+    "my_favorites": "我的收藏",
+    "recent_used": "最近使用",
+    "no_favorites": "暂无收藏，快去添加常用工具吧！",
+    "no_history": "暂无使用记录",
+    "unfavorite": "取消收藏",
+    "favorite": "收藏"
+  },
+  "toolDetail": {
+    "to": "转为",
+    "description": "在线将{{source}} Word文档转换为{{target}}格式。免费工具维护文本格式。",
+    "upload_main_text": "在这里拖放你的{{source}}文件或文件夹",
+    "upload_sub_text": "支持批量上传",
+    "select_files": "选择文件",
+    "drop_files": "拖拽文件到此处，或",
+    "supported_formats": "支持格式",
+    "start_conversion": "开始转换",
+    "download_all": "下载全部",
+    "clear_all": "清空列表",
+    "save_to": "保存到",
+    "select_folder": "选择文件夹,将所有文件保存到该位置",
+    "options": {
+      "title": "转换选项",
+      "preview_options": "预览选项",
+      "enable_preview": "启用预览",
+      "convert_to_code": "转换为源代码（勾选则输出带高亮的代码 PDF）",
+      "css_options": "CSS 选项",
+      "css_handling": "CSS 处理",
+      "keep_all_css": "保留所有 CSS",
+      "remove_scripts": "移除脚本",
+      "remove_comments": "移除注释",
+      "compress_html": "压缩 HTML",
+      "remove_empty_tags": "移除空标签",
+      "page_settings": "页面设置",
+      "page_size": "页面大小",
+      "animation_settings": "动画设置",
+      "animation_delay": "动画延迟 (毫秒)",
+      "loop_animation": "循环播放",
+      "quality": "质量",
+      "background_color": "背景颜色",
+      "csv_delimiter": "CSV 分隔符",
+      "comma": "逗号 (,)",
+      "semicolon": "分号 (;)",
+      "tab": "制表符 (Tab)",
+      "yaml_indent": "YAML 缩进",
+      "orientation": "方向",
+      "landscape": "横向",
+      "portrait": "纵向",
+      "page_selection": "页面选择",
+      "select_pages": "选择页面",
+      "all_pages": "所有页面",
+      "page_range": "页面范围",
+      "specific_pages": "特定页面",
+      "page_range_placeholder": "例如: 1-5",
+      "specific_pages_placeholder": "例如: 1,3,5",
+      "animation_delay": "动画延迟 (ms)",
+      "loop_animation": "循环播放",
+      "speech_speed": "语速",
+      "speech_pitch": "音调",
+      "enable_preview": "启用预览",
+      "code_mode": "代码模式",
+      "css_handling": "CSS 处理",
+      "keep_all_css": "保留所有 CSS",
+      "compress_css": "压缩 CSS"
+    },
+    "messages": {
+      "select_preview_first": "请先勾选\"启用预览\"选项",
+      "upload_html_first": "请先上传 HTML 文件",
+      "invalid_file_type": "只能上传 {{format}} 格式的文件 ({{extensions}})\n无效文件: {{names}}"
+    }
+  }
+}

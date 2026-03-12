@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import AdPlaceholder from './AdPlaceholder';
@@ -21,6 +21,8 @@ const AdBanner = ({
     const [direction, setDirection] = useState(0); // -1 for left, 1 for right
     const timerRef = useRef(null);
 
+    const normalizedPositions = useMemo(() => positions || [], [positions]);
+
     useEffect(() => {
         let isMounted = true;
 
@@ -41,7 +43,7 @@ const AdBanner = ({
             try {
                 setLoading(true);
                 const results = await Promise.all(
-                    positions.map(pos => AdService.fetchAd(pos))
+                    normalizedPositions.map(pos => AdService.fetchAd(pos))
                 );
                 const fetchedAds = results.flat();
 
@@ -49,11 +51,11 @@ const AdBanner = ({
                     // Preload all ad images before showing
                     await preloadImages(fetchedAds);
                 } else {
-                    console.warn('AdBanner: No ads fetched for positions:', positions);
+                    console.warn('AdBanner: No ads fetched for positions:', normalizedPositions);
                 }
 
                 if (isMounted) {
-                    console.log(`AdBanner: Loaded ${fetchedAds.length} ads for`, positions);
+                    console.log(`AdBanner: Loaded ${fetchedAds.length} ads for`, normalizedPositions);
                     setAds(fetchedAds);
                     setLoading(false);
                 }
@@ -68,31 +70,9 @@ const AdBanner = ({
         return () => {
             isMounted = false;
         };
-    }, [JSON.stringify(positions)]);
+    }, [normalizedPositions]);
 
-    // Carousel logic
-    const startTimer = () => {
-        stopTimer();
-        if (ads.length > 1 && interval > 0) {
-            timerRef.current = setInterval(() => {
-                paginate(1);
-            }, interval);
-        }
-    };
-
-    const stopTimer = () => {
-        if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-        }
-    };
-
-    useEffect(() => {
-        startTimer();
-        return stopTimer;
-    }, [ads.length, interval]);
-
-    const paginate = (newDirection) => {
+    const paginate = useCallback((newDirection) => {
         setDirection(newDirection);
         setCurrentIndex(prevIndex => {
             let nextIndex = prevIndex + newDirection;
@@ -100,7 +80,28 @@ const AdBanner = ({
             if (nextIndex >= ads.length) nextIndex = 0;
             return nextIndex;
         });
-    };
+    }, [ads.length]);
+
+    const stopTimer = useCallback(() => {
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+    }, []);
+
+    const startTimer = useCallback(() => {
+        stopTimer();
+        if (ads.length > 1 && interval > 0) {
+            timerRef.current = setInterval(() => {
+                paginate(1);
+            }, interval);
+        }
+    }, [ads.length, interval, paginate, stopTimer]);
+
+    useEffect(() => {
+        startTimer();
+        return stopTimer;
+    }, [startTimer, stopTimer]);
 
     const handleAdClick = () => {
         const currentAd = ads[currentIndex];
@@ -114,6 +115,8 @@ const AdBanner = ({
             }
         }
     };
+
+    const MotionDiv = motion.div;
 
     const variants = {
         enter: (direction) => ({
@@ -180,7 +183,7 @@ const AdBanner = ({
             onMouseLeave={startTimer}
         >
             <AnimatePresence initial={false} custom={direction}>
-                <motion.div
+                <MotionDiv
                     key={currentIndex}
                     custom={direction}
                     variants={variants}
@@ -218,7 +221,7 @@ const AdBanner = ({
                         className="ad-banner-slide"
                         draggable={false}
                     />
-                </motion.div>
+                </MotionDiv>
             </AnimatePresence>
 
             {/* Navigation Buttons (Only if > 1 ad) */}

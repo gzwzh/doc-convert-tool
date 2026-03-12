@@ -39,7 +39,17 @@ class Converter(ABC):
     
     def get_output_filename(self, input_file, extension):
         """生成输出文件名"""
+        import re
+        
         base_name = os.path.splitext(os.path.basename(input_file))[0]
+        
+        # 移除Windows非法字符
+        base_name = re.sub(r'[<>:"/\\|?*]', '_', base_name)
+        # 移除控制字符
+        base_name = re.sub(r'[\x00-\x1f]', '', base_name)
+        base_name = base_name.strip().strip('.')
+        if not base_name:
+            base_name = "untitled"
         
         # 确保扩展名不包含点号
         if extension.startswith('.'):

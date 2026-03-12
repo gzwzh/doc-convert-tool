@@ -90,7 +90,7 @@ export const AuthService = {
         return res.data.data.token;
       }
       return null;
-    } catch (error) {
+  } catch {
       return null;
     }
   },
@@ -105,7 +105,7 @@ export const AuthService = {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
       return res.data.code === 1;
-    } catch (error) {
+  } catch {
       return false;
     }
   },
@@ -142,7 +142,7 @@ export const AuthService = {
         }
       });
       return res.data.code === 1;
-    } catch (error) {
+  } catch {
       return false;
     }
   },

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { categories } from '../data';
 import ToolHeader from '../components/ToolHeader';
@@ -9,18 +9,10 @@ import '../App.css';
 function XmlTools() {
   const navigate = useNavigate();
   const categoryData = categories['文档类'];
-  const [activeSection, setActiveSection] = useState(null);
+  const [activeSection, setActiveSection] = useState(
+    categoryData ? categoryData.find(section => section.name === 'XML 转换器') || categoryData[0] : null
+  );
   const [selectedTool, setSelectedTool] = useState(null);
-
-  useEffect(() => {
-    if (categoryData && categoryData.length > 0) {
-      // Find XML converter section
-      const xmlSection = categoryData.find(section => section.name === 'XML 转换器');
-      setActiveSection(xmlSection || categoryData[0]);
-    } else {
-        navigate('/');
-    }
-  }, [categoryData, navigate]);
 
   const handleToolClick = (tool) => {
     setSelectedTool(tool);

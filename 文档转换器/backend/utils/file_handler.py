@@ -29,3 +29,19 @@ class FileHandler:
                 os.remove(file_path)
             except Exception:
                 pass
+
+    @staticmethod
+    def sanitize_filename(filename: str) -> str:
+        if not filename:
+            return "untitled"
+
+        import re
+        filename = os.path.basename(filename)
+        filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
+        filename = re.sub(r'[\x00-\x1f]', '', filename)
+        filename = filename.strip().strip('.')
+
+        if not filename:
+            return "untitled"
+
+        return filename

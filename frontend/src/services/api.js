@@ -69,7 +69,7 @@ const handleResponse = async (response, apiBaseUrl, file) => {
     try {
       const errorData = await response.json();
       errorDetail = errorData.detail || errorDetail;
-    } catch (e) {
+    } catch {
       errorDetail = `转换失败 (${response.status}: ${response.statusText})`;
     }
     
@@ -129,6 +129,7 @@ export const convertJSON = async (file, targetFormat, options = {}) => {
     const response = await fetch(`${apiBaseUrl}/api/convert/json`, {
       method: 'POST',
       body: formData,
+      signal: options.signal,
     });
 
     return await handleResponse(response, apiBaseUrl, file);
@@ -156,6 +157,7 @@ export const convertXML = async (file, targetFormat, options = {}) => {
     const response = await fetch(`${apiBaseUrl}/api/convert/xml`, {
       method: 'POST',
       body: formData,
+      signal: options.signal,
     });
 
     return await handleResponse(response, apiBaseUrl, file);
@@ -175,16 +177,16 @@ export const convertGeneral = async (file, targetFormat, options = {}) => {
     if (options.encoding) formData.append('encoding', options.encoding);
     
     // HTML specific options
-    if (options.enablePreview !== undefined) formData.append('enable_preview', options.enablePreview);
+    if (options.enable_preview !== undefined) formData.append('enable_preview', options.enable_preview);
     if (options.codeMode !== undefined) formData.append('code_mode', options.codeMode);
-    if (options.cssHandling) formData.append('css_handling', options.cssHandling);
-    if (options.compressCss !== undefined) formData.append('compress_css', options.compressCss);
-    if (options.customCss) formData.append('custom_css', options.customCss);
-    if (options.removeScripts !== undefined) formData.append('remove_scripts', options.removeScripts);
-    if (options.removeComments !== undefined) formData.append('remove_comments', options.removeComments);
-    if (options.compressHtml !== undefined) formData.append('compress_html', options.compressHtml);
-    if (options.removeEmptyTags !== undefined) formData.append('remove_empty_tags', options.removeEmptyTags);
-    if (options.pageSize) formData.append('page_size', options.pageSize);
+    if (options.css_handling) formData.append('css_handling', options.css_handling);
+    if (options.compress_css !== undefined) formData.append('compress_css', options.compress_css);
+    if (options.custom_css) formData.append('custom_css', options.custom_css);
+    if (options.remove_scripts !== undefined) formData.append('remove_scripts', options.remove_scripts);
+    if (options.remove_comments !== undefined) formData.append('remove_comments', options.remove_comments);
+    if (options.compress_html !== undefined) formData.append('compress_html', options.compress_html);
+    if (options.remove_empty_tags !== undefined) formData.append('remove_empty_tags', options.remove_empty_tags);
+    if (options.page_size) formData.append('page_size', options.page_size);
     if (options.orientation) formData.append('orientation', options.orientation);
     
     // Image quality options
@@ -200,15 +202,15 @@ export const convertGeneral = async (file, targetFormat, options = {}) => {
     if (options.watermark_position) formData.append('watermark_position', options.watermark_position);
     
     // CSV options
-    if (options.csvDelimiter) formData.append('csv_delimiter', options.csvDelimiter);
+    if (options.csv_delimiter) formData.append('csv_delimiter', options.csv_delimiter);
     
     // PDF page selection
-    if (options.pdfPageSelection) formData.append('pdf_page_selection', options.pdfPageSelection);
+    if (options.pdf_page_selection) formData.append('pdf_page_selection', options.pdf_page_selection);
     if (options.pdf_page_range) formData.append('pdf_page_range', options.pdf_page_range);
     
     // GIF animation options
-    if (options.animationDelay !== undefined) formData.append('animation_delay', options.animationDelay);
-    if (options.loopAnimation !== undefined) formData.append('loop_animation', options.loopAnimation);
+    if (options.animation_delay !== undefined) formData.append('animation_delay', options.animation_delay);
+    if (options.loop_animation !== undefined) formData.append('loop_animation', options.loop_animation);
 
     const apiBaseUrl = await getApiBaseUrl();
     const ready = await ensureBackendReady(apiBaseUrl);
@@ -219,6 +221,13 @@ export const convertGeneral = async (file, targetFormat, options = {}) => {
     // 创建一个带超时的 AbortController
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15 * 60 * 1000); // 15分钟超时
+    
+    // 如果提供了外部 signal，则监听其 abort 事件
+    if (options.signal) {
+      options.signal.addEventListener('abort', () => {
+        controller.abort();
+      });
+    }
     
     try {
       const response = await fetch(`${apiBaseUrl}/api/convert/general`, {
@@ -238,6 +247,38 @@ export const convertGeneral = async (file, targetFormat, options = {}) => {
     }
   } catch (error) {
     console.error('Conversion error:', error);
+    throw error;
+  }
+};
+
+/**
+ * 批量打包下载
+ * @param {string[]} files - 文件名列表
+ * @returns {Promise<Blob>} ZIP 文件 Blob
+ */
+export const batchDownload = async (files) => {
+  try {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    
+    const apiBaseUrl = await getApiBaseUrl();
+    const ready = await ensureBackendReady(apiBaseUrl);
+    if (!ready) {
+      throw new Error('后端服务未启动');
+    }
+    
+    const response = await fetch(`${apiBaseUrl}/api/batch-download`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error('Batch download failed');
+    }
+    
+    return await response.blob();
+  } catch (error) {
+    console.error('Batch download error:', error);
     throw error;
   }
 };

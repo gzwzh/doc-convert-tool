@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, Button, Avatar, Typography, message } from 'antd';
 import { UserOutlined, LoadingOutlined, LogoutOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { useUserStore } from '../stores/useUserStore';
@@ -7,6 +8,7 @@ import '../styles/LoginModal.css';
 const { Text, Title, Paragraph } = Typography;
 
 const LoginModal = () => {
+    const { t } = useTranslation();
     const {
         userInfo,
         isLoggedIn,
@@ -29,7 +31,7 @@ const LoginModal = () => {
 
     const handleCancelLogin = () => {
         stopLoginProcess();
-        message.info('已取消登录');
+        message.info(t('loginModal.login_cancelled'));
     };
 
     const handleLogout = () => {
@@ -48,7 +50,7 @@ const LoginModal = () => {
                         </div>
                     </div>
                     <Title level={4} className="login-modal-title">{userInfo.nickname}</Title>
-                    <Text className="login-modal-subtitle">已登录鲲穹账户</Text>
+                    <Text className="login-modal-subtitle">{t('loginModal.logged_in_as')}</Text>
 
                     <div className="login-modal-buttons">
                         <Button
@@ -59,7 +61,7 @@ const LoginModal = () => {
                             icon={<LogoutOutlined />}
                             onClick={handleLogout}
                         >
-                            退出当前账号
+                            {t('loginModal.logout')}
                         </Button>
                         <Button
                             type="text"
@@ -67,7 +69,7 @@ const LoginModal = () => {
                             className="login-modal-btn-text"
                             onClick={handleClose}
                         >
-                            关闭窗口
+                            {t('loginModal.close')}
                         </Button>
                     </div>
                 </div>
@@ -79,8 +81,8 @@ const LoginModal = () => {
                 <div className="login-modal-content">
                     <div className="login-polling-container">
                         <LoadingOutlined className="login-polling-icon" spin />
-                        <div className="login-polling-title">等待登录...</div>
-                        <div className="login-polling-desc">请在浏览器中完成登录验证</div>
+                        <div className="login-polling-title">{t('loginModal.waiting_login')}</div>
+                        <div className="login-polling-desc">{t('loginModal.browser_notice')}</div>
                     </div>
 
                     <div className="login-modal-buttons">
@@ -90,7 +92,7 @@ const LoginModal = () => {
                             className="login-modal-btn-secondary"
                             onClick={handleCancelLogin}
                         >
-                            取消登录
+                            {t('loginModal.cancel_login')}
                         </Button>
                     </div>
                 </div>
@@ -103,9 +105,14 @@ const LoginModal = () => {
                 <div className="login-modal-avatar-container">
                     <Avatar size={80} icon={<UserOutlined />} />
                 </div>
-                <Title level={4} className="login-modal-title">登录鲲穹账户</Title>
+                <Title level={4} className="login-modal-title">{t('loginModal.guest_title')}</Title>
                 <Paragraph className="login-modal-subtitle">
-                    登录后即可保存您的个性设置<br />并享受更多高级功能
+                    {t('loginModal.guest_subtitle').split('<br />').map((line, i) => (
+                        <React.Fragment key={i}>
+                            {line}
+                            {i === 0 && <br />}
+                        </React.Fragment>
+                    ))}
                 </Paragraph>
 
                 <div className="login-modal-buttons">
@@ -117,7 +124,7 @@ const LoginModal = () => {
                         onClick={handleLogin}
                         icon={<UserOutlined />}
                     >
-                        立即登录
+                        {t('loginModal.login_now')}
                     </Button>
                     <Button
                         type="text"
@@ -126,7 +133,7 @@ const LoginModal = () => {
                         className="login-modal-btn-text"
                         onClick={handleClose}
                     >
-                        下次再说
+                        {t('loginModal.later')}
                     </Button>
                 </div>
             </div>

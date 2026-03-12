@@ -4,6 +4,21 @@ const { spawn } = require('child_process');
 const isDev = require('electron-is-dev');
 const fs = require('fs');
 
+// 加载国际化配置
+const zhLocale = require('./locales/zh.json');
+const t = (key) => {
+  const keys = key.split('.');
+  let result = zhLocale;
+  for (const k of keys) {
+    if (result[k]) {
+      result = result[k];
+    } else {
+      return key;
+    }
+  }
+  return result;
+};
+
 // 获取应用配置
 const pkg = require('../package.json');
 const SOFTWARE_ID = pkg.softwareId || '10031';
@@ -64,10 +79,10 @@ async function checkUpdate() {
 function handleUpdate(updateInfo) {
   const dialogOpts = {
     type: 'info',
-    buttons: ['立即更新', '稍后提醒'],
-    title: '软件更新',
-    message: `发现新版本 v${updateInfo.version}`,
-    detail: `更新日志:\n${updateInfo.update_log || '暂无更新说明'}\n\n是否立即下载并安装更新？`
+    buttons: [t('update.update_now'), t('update.later')],
+    title: t('update.title'),
+    message: `${t('update.found_new_version')} v${updateInfo.version}`,
+    detail: `${t('update.update_log')}:\n${updateInfo.update_log || t('update.no_update_log')}\n\n${t('update.ask_update')}`
   };
 
   dialog.showMessageBox(mainWindow, dialogOpts).then((returnValue) => {
@@ -84,7 +99,7 @@ function startUpdater(updateInfo) {
   
   if (!fs.existsSync(updaterPath)) {
     console.error('更新程序不存在:', updaterPath);
-    dialog.showErrorBox('更新失败', '更新程序 (updater.exe) 丢失，请重新安装应用');
+    dialog.showErrorBox(t('update.failed'), t('update.updater_missing'));
     return;
   }
 

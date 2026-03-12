@@ -20,6 +20,19 @@ class DocxToTxtConverter(BaseConverter):
         """将 DOCX 转换为 TXT（增强版）"""
         try:
             self.validate_input(input_path)
+            
+            # 检查文件头，防止非 DOCX 文件被错误处理（例如伪装成 docx 的 PDF）
+            try:
+                with open(input_path, 'rb') as f:
+                    header = f.read(5)
+                    # PDF magic number: %PDF- (0x25 0x50 0x44 0x46 0x2D)
+                    if header.startswith(b'%PDF'):
+                        raise ValueError("输入文件似乎是 PDF 文件，而不是 Word 文档。请使用 PDF 转 Word 功能，或修改文件扩展名。")
+            except Exception as e:
+                if isinstance(e, ValueError):
+                    raise e
+                pass
+
             self.update_progress(input_path, 10)
             
             # 获取选项
@@ -74,5 +87,7 @@ class DocxToTxtConverter(BaseConverter):
             }
             
         except Exception as e:
+            if isinstance(e, ValueError):
+                raise e
             self.cleanup_on_error(output_path)
             raise Exception(f"DOCX to TXT conversion failed: {str(e)}")

@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backend.api.routes import router
 from backend.services.converter_service import DOWNLOAD_DIR
 from backend.utils.logger import logger
+from backend.utils.cleanup import cleanup_service
 
 app = FastAPI(title="Format Converter API")
 
@@ -35,6 +36,14 @@ async def startup_event():
     logger.info("后端服务正在启动...")
     logger.info(f"Python 路径: {sys.path}")
     logger.info(f"下载目录: {DOWNLOAD_DIR}")
+    # 启动清理服务
+    cleanup_service.start()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("后端服务正在关闭...")
+    # 停止清理服务
+    cleanup_service.stop()
 
 if __name__ == "__main__":
     for route in app.routes:

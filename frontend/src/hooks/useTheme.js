@@ -19,7 +19,7 @@ export const useTheme = () => {
         updateDomTheme(theme);
     }, [theme]);
 
-    const toggleTheme = (event) => {
+    const toggleTheme = () => {
         const newTheme = theme === 'light' ? 'dark' : 'light';
 
         // 直接切换，不使用动画

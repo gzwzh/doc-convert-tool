@@ -1,5 +1,6 @@
 import os
 import uuid
+from backend.utils.file_handler import FileHandler
 from typing import Dict, Any, List
 from backend.converters.json_to_yaml import JsonToYamlConverter
 from backend.converters.json_to_xml import JsonToXmlConverter
@@ -222,8 +223,8 @@ class ConverterService:
         
         # 生成输出路径，使用优化的文件名策略
         if original_filename:
-            # 移除原始扩展名，保留文件名
-            base_name = os.path.splitext(original_filename)[0]
+            safe_filename = FileHandler.sanitize_filename(original_filename)
+            base_name = os.path.splitext(safe_filename)[0]
             display_name = f"{base_name}.{target_format}"
             
             # 生成短哈希（6位）确保唯一性

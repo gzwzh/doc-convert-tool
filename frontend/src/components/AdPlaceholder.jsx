@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PictureOutlined } from '@ant-design/icons';
 import '../styles/AdPlaceholder.css';
 
@@ -10,11 +11,11 @@ const AdPlaceholder = ({
     height = 'auto',
     style: customStyle
 }) => {
+    const { t } = useTranslation();
     const [logoUrl, setLogoUrl] = useState('');
     useEffect(() => {
         const loadLogo = async () => {
             try {
-                // eslint-disable-next-line no-undef
                 const electron = window.require ? window.require('electron') : null;
                 if (electron?.ipcRenderer) {
                     const url = await electron.ipcRenderer.invoke('get-resource-url', 'kq.png');
@@ -41,7 +42,7 @@ const AdPlaceholder = ({
         ...customStyle
     };
 
-    const isLoading = label.includes('加载中');
+    const isLoading = label && (label.includes('加载中') || label.includes(t('ad.loading')));
     const isSmall = ratio && ratio > 3; // For 4:1 banner (small height)
 
     return (
@@ -61,8 +62,8 @@ const AdPlaceholder = ({
                         <PictureOutlined className="ad-branding-icon" />
                     )}
                     <div className="ad-branding-content">
-                        <div className="ad-branding-title">鲲穹AI</div>
-                        <div className="ad-branding-slogan">让办公更高效</div>
+                        <div className="ad-branding-title">{t('ad.brand')}</div>
+                        <div className="ad-branding-slogan">{t('ad.slogan')}</div>
                     </div>
                 </div>
             )}

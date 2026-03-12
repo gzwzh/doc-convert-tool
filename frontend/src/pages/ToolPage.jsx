@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { categories } from '../data';
 import '../App.css';
@@ -11,13 +11,6 @@ const slugMap = {
   'audio': '音频类'
 };
 
-const categoryMap = {
-  '视频类': 'video',
-  '图片类': 'image',
-  '文档类': 'doc',
-  '音频类': 'audio'
-};
-
 function ToolPage() {
   const { type } = useParams();
   const navigate = useNavigate();
@@ -26,24 +19,12 @@ function ToolPage() {
   const currentCategoryName = slugMap[type] || '视频类';
   
   // State
-  const [activeSection, setActiveSection] = useState(null);
-
-  // Initialize active section when category changes
-  useEffect(() => {
-    if (categories[currentCategoryName]) {
-      setActiveSection(categories[currentCategoryName][0]);
-    } else {
-      // Fallback or 404 handling could go here
-      navigate('/');
-    }
-  }, [currentCategoryName, navigate]);
+  const [activeSection, setActiveSection] = useState(
+    categories[currentCategoryName] ? categories[currentCategoryName][0] : null
+  );
 
   const handleSectionClick = (section) => {
     setActiveSection(section);
-  };
-
-  const handleCategorySwitch = (catName) => {
-    navigate(`/tools/${categoryMap[catName]}`);
   };
 
   // Helper to parse tool name

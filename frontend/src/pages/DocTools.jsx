@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { categories } from '../data';
 import ToolHeader from '../components/ToolHeader';
 import ToolSidebar from '../components/ToolSidebar';
@@ -8,18 +8,11 @@ import '../App.css';
 
 function DocTools() {
   const navigate = useNavigate();
-  const { toolType } = useParams();
   const categoryData = categories['文档类'];
-  const [activeSection, setActiveSection] = useState(null);
+  const [activeSection, setActiveSection] = useState(
+    categoryData && categoryData.length > 0 ? categoryData[0] : null
+  );
   const [selectedTool, setSelectedTool] = useState(null);
-
-  useEffect(() => {
-    if (categoryData && categoryData.length > 0) {
-      setActiveSection(categoryData[0]);
-    } else {
-        navigate('/');
-    }
-  }, [categoryData, navigate]);
 
   const handleToolClick = (tool) => {
     setSelectedTool(tool);
@@ -47,22 +40,6 @@ function DocTools() {
       // Stay on current page but switch section
       setActiveSection(section);
       setSelectedTool(null);
-    }
-  };
-
-  const handleCategoryNavigation = (categoryName) => {
-    const categoryMap = {
-      'DOCX 转换器': 'docx',
-      'HTML 转换器': 'html', 
-      'JSON 转换器': 'json',
-      'PDF 转换器': 'pdf',
-      'TXT 转换器': 'txt',
-      'XML 转换器': 'xml'
-    };
-    
-    const route = categoryMap[categoryName];
-    if (route) {
-      navigate(`/tools/${route}`);
     }
   };
 

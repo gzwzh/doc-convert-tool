@@ -54,6 +54,8 @@ class DocxToImageConverter(BaseConverter):
             return result
             
         except Exception as e:
+            if isinstance(e, ValueError):
+                raise e
             print(f"[DocxToImage] 转换失败: {e}")
             import traceback
             traceback.print_exc()

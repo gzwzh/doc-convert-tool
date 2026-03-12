@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../hooks/useTheme';
 import { Avatar } from 'antd';
 import { UserOutlined, LoadingOutlined } from '@ant-design/icons';
@@ -8,7 +9,8 @@ import LoginModal from './LoginModal';
 import '../styles/LoginModal.css';
 import '../App.css';
 
-function ToolHeader() {
+function ToolHeader({ onHomeClick, activeSection }) {
+  const { t } = useTranslation();
   const { isLoggedIn, userInfo, isPolling, showLoginModal, init } = useUserStore();
   const { theme, toggleTheme } = useTheme();
   const [appVersion, setAppVersion] = useState('v1.0.0');
@@ -45,14 +47,14 @@ function ToolHeader() {
       return (
         <button className="user-btn user-btn-polling" onClick={showLoginModal}>
           <LoadingOutlined spin />
-          <span>登录中...</span>
+          <span>{t('header.logging_in')}</span>
         </button>
       );
     }
 
     return (
       <button className="user-btn" onClick={showLoginModal}>
-        登录
+        {t('header.login')}
       </button>
     );
   };
@@ -83,12 +85,40 @@ function ToolHeader() {
           <img src="app.ico" alt="Logo" className="nav-app-icon" />
           <div className="nav-app-info">
             <div className="nav-app-title-wrapper">
-              <div className="nav-app-title">文档转换器</div>
+              <div className="nav-app-title">{t('header.app_title')}</div>
               <span className="nav-app-version">{appVersion}</span>
             </div>
-            <div className="nav-app-subtitle">鲲穹AI旗下产品</div>
+            <div className="nav-app-subtitle">{t('header.app_subtitle')}</div>
           </div>
         </div>
+        
+        {/* 我的主页按钮 */}
+        <button 
+          className={`nav-home-btn ${activeSection === '我的主页' || activeSection === t('header.home') ? 'active' : ''}`}
+          onClick={onHomeClick}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            backgroundColor: (activeSection === '我的主页' || activeSection === t('header.home')) ? 'var(--primary-color)' : 'transparent',
+            color: (activeSection === '我的主页' || activeSection === t('header.home')) ? '#fff' : 'var(--text-secondary)',
+            border: 'none',
+            padding: '6px 14px',
+            borderRadius: '18px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            marginLeft: '20px',
+            boxShadow: (activeSection === '我的主页' || activeSection === t('header.home')) ? '0 4px 12px rgba(0, 163, 255, 0.2)' : 'none',
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          {t('header.home')}
+        </button>
       </div>
 
       <div className="nav-right">

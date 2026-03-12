@@ -1,10 +1,11 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { motion } from 'framer-motion';
-import { convertJSON, convertXML, convertGeneral, getApiBaseUrl } from '../services/api';
+import { convertJSON, convertXML, convertGeneral, getApiBaseUrl, batchDownload } from '../services/api';
 import { categories } from '../data';
 
 // 文件类型映射表
@@ -42,6 +43,8 @@ const FILE_TYPE_MAP = {
 };
 
 function ToolDetailContent({ toolName, onBack }) {
+  const { t } = useTranslation();
+  const MotionDiv = motion.div;
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
@@ -51,6 +54,8 @@ function ToolDetailContent({ toolName, onBack }) {
   const [conversionResults, setConversionResults] = useState({}); // Map of file index to result
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloadingFileId, setDownloadingFileId] = useState(null); // 记录要下载的文件ID
+  const [progress, setProgress] = useState({ current: 0, total: 0, percent: 0 });
+  const abortControllerRef = useRef(null);
   const [isWatermarkExpanded, setIsWatermarkExpanded] = useState(false);
   const [isPdfPagesExpanded, setIsPdfPagesExpanded] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -78,10 +83,10 @@ function ToolDetailContent({ toolName, onBack }) {
   const [convertOptions, setConvertOptions] = useState({
     quality: 85,
     backgroundColor: '#ffffff',
-    csvDelimiter: '逗号 (,)',
+    csvDelimiter: t('toolDetail.options.comma'),
     yamlIndent: 2,
-    orientation: '横向',
-    pdfPageSelection: '所有页面',
+    orientation: t('toolDetail.options.landscape'),
+    pdfPageSelection: t('toolDetail.options.all_pages'),
     animationDelay: 100,
     loopAnimation: true,
     speechSpeed: 1.0,
@@ -93,7 +98,7 @@ function ToolDetailContent({ toolName, onBack }) {
   const [htmlOptions, setHtmlOptions] = useState({
     enablePreview: false,
     codeMode: false,  // 默认不勾选代码模式（即默认渲染模式）
-    cssHandling: '保留所有 CSS',
+    cssHandling: t('toolDetail.options.keep_all_css'),
     compressCss: false,
     customCss: '',
     removeScripts: true,
@@ -101,7 +106,7 @@ function ToolDetailContent({ toolName, onBack }) {
     compressHtml: false,
     removeEmptyTags: false,
     pageSize: 'A4',
-    orientation: '纵向'
+    orientation: t('toolDetail.options.portrait')
   });
 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -142,13 +147,13 @@ function ToolDetailContent({ toolName, onBack }) {
   const formatToolDisplayName = useCallback((name) => {
     const parts = name.split(' To ');
     if (parts.length === 2) {
-      return `${parts[0]}转为${parts[1]}`;
+      return `${parts[0]}${t('toolDetail.to')}${parts[1]}`;
     }
     return name;
-  }, []);
+  }, [t]);
 
-  const { currentSection, siblingTools } = useMemo(() => {
-    const majorCategory = categories['主要功能'] || [];
+  const { siblingTools } = useMemo(() => {
+    const majorCategory = categories[t('common.major_functions')] || [];
     let section = null;
     for (const s of majorCategory) {
       if (s.tools && s.tools.some((t) => t.name === toolName)) {
@@ -157,7 +162,6 @@ function ToolDetailContent({ toolName, onBack }) {
       }
     }
     return {
-      currentSection: section,
       siblingTools: section ? section.tools.map((t) => t.name) : []
     };
   }, [toolName]);
@@ -235,12 +239,12 @@ function ToolDetailContent({ toolName, onBack }) {
 
   const handlePreviewHtml = () => {
     if (!htmlOptions.enablePreview) {
-      toast.error('请先勾选"启用预览"选项');
+      toast.error(t('toolDetail.messages.select_preview_first'));
       return;
     }
 
     if (files.length === 0) {
-      toast.error('请先上传 HTML 文件');
+      toast.error(t('toolDetail.messages.upload_html_first'));
       return;
     }
 
@@ -256,15 +260,20 @@ function ToolDetailContent({ toolName, onBack }) {
 
   const handleDragOver = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(true);
   };
 
-  const handleDragLeave = () => {
+  const handleDragLeave = (e) => {
+    if (e) {
+      e.stopPropagation();
+    }
     setIsDragging(false);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
     
     const droppedFiles = Array.from(e.dataTransfer.files);
@@ -277,7 +286,7 @@ function ToolDetailContent({ toolName, onBack }) {
     if (invalidFiles.length > 0) {
       const invalidNames = invalidFiles.map(f => f.name).join(', ');
       toast.error(
-        `只能上传 ${source} 格式的文件 (${allowedExtensions.join(', ')})\n无效文件: ${invalidNames}`,
+        t('toolDetail.messages.invalid_file_type', { format: source, extensions: allowedExtensions.join(', '), names: invalidNames }),
         { duration: 4000 }
       );
     }
@@ -552,22 +561,18 @@ function ToolDetailContent({ toolName, onBack }) {
     if (downloadableFiles.length === 0) return;
 
     setShowDownloadModal(false);
-    const zip = new JSZip();
     const toastId = toast.loading('正在打包文件...');
-    const apiBaseUrl = await getApiBaseUrl();
     
     try {
-      const promises = downloadableFiles.map(async (res) => {
-        const response = await fetch(`${apiBaseUrl}${res.download_url}`);
-        const blob = await response.blob();
-        // 使用 display_name（如果有），否则从 URL 提取
-        const filename = res.display_name || res.download_url.split('/').pop() || `file-${Date.now()}.dat`;
-        zip.file(filename, blob);
+      // 收集所有文件名
+      const filenames = downloadableFiles.map(res => {
+        // 从 URL 中提取文件名
+        return res.download_url.split('/').pop();
       });
 
-      await Promise.all(promises);
+      // 调用后端批量下载接口
+      const blob = await batchDownload(filenames);
       
-      const content = await zip.generateAsync({ type: 'blob' });
       const filename = `${toolName}-converted-${Date.now()}.zip`;
 
       // 1. Electron Environment
@@ -579,7 +584,7 @@ function ToolDetailContent({ toolName, onBack }) {
           });
           
           if (filePath) {
-            const arrayBuffer = await content.arrayBuffer();
+            const arrayBuffer = await blob.arrayBuffer();
             const result = await window.electronAPI.saveFile(filePath, arrayBuffer);
             if (result.success) {
                toast.success('打包下载成功', { id: toastId });
@@ -608,7 +613,7 @@ function ToolDetailContent({ toolName, onBack }) {
                   }],
               });
               const writable = await handle.createWritable();
-              await writable.write(content);
+              await writable.write(blob);
               await writable.close();
               toast.success('打包下载成功', { id: toastId });
               return;
@@ -622,7 +627,7 @@ function ToolDetailContent({ toolName, onBack }) {
           }
       }
 
-      saveAs(content, filename);
+      saveAs(blob, filename);
       
       toast.success('打包下载成功', { id: toastId });
     } catch (error) {
@@ -661,6 +666,14 @@ function ToolDetailContent({ toolName, onBack }) {
     if (!color) return true; // Optional or default
     return /^#([0-9A-Fa-f]{3}){1,2}$/.test(color);
   };
+
+  const handleCancelConversion = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsConverting(false);
+      toast.error('转换已取消');
+    }
+  }, []);
 
   const handleConvert = async () => {
     if (files.length === 0) return;
@@ -704,6 +717,11 @@ function ToolDetailContent({ toolName, onBack }) {
 
     setIsConverting(true);
     setConversionResults({});
+    setProgress({ current: 0, total: files.length, percent: 0 });
+    
+    // Create new AbortController
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
     
     // 检查是否是PPT转视频，给出特殊提示
     const isPptToVideo = (source === 'PPT' || source === 'PPTX') && target === 'Video';
@@ -721,19 +739,23 @@ function ToolDetailContent({ toolName, onBack }) {
     try {
       // Loop through all files
       for (let i = 0; i < files.length; i++) {
+        if (signal.aborted) {
+          throw new Error('操作已取消');
+        }
+
         const fileObj = files[i];
         const file = fileObj.file;
         
         try {
           let result;
           if (source === 'JSON' && (target === 'YAML' || target === 'YML' || target === 'XML')) {
-            const options = {};
+            const options = { signal };
             if (target === 'YAML' || target === 'YML') {
               options.indent = convertOptions.yamlIndent;
             }
             result = await convertJSON(file, target.toLowerCase(), options);
           } else if (source === 'XML' && (target === 'JSON' || target === 'YAML' || target === 'YML')) {
-            const options = {};
+            const options = { signal };
             if (target === 'YAML' || target === 'YML') {
               options.indent = convertOptions.yamlIndent;
             }
@@ -773,7 +795,7 @@ function ToolDetailContent({ toolName, onBack }) {
             if (target === 'SPEECH') targetFormat = 'mp3';  // 默认转换为 MP3
             
             // Prepare options based on source format
-            const options = {};
+            const options = { signal };
             
             if (source === 'DOCX') {
               if (['PNG', 'JPG', 'JPEG'].includes(target)) {
@@ -973,10 +995,20 @@ function ToolDetailContent({ toolName, onBack }) {
           setConversionResults(prev => ({ ...prev, [fileObj.id]: result }));
           successCount++;
         } catch (err) {
+          if (err.name === 'AbortError' || err.message === '操作已取消') {
+             throw err; // Re-throw cancellation to stop outer loop
+          }
           console.error(`Error converting file ${file.name}:`, err);
           setConversionResults(prev => ({ ...prev, [fileObj.id]: { error: err.message } }));
           failureCount++;
         }
+        
+        // Update progress
+        setProgress(prev => ({
+          ...prev,
+          current: i + 1,
+          percent: Math.round(((i + 1) / files.length) * 100)
+        }));
       }
       
       if (failureCount === 0) {
@@ -985,15 +1017,22 @@ function ToolDetailContent({ toolName, onBack }) {
         toast.error(`转换完成: ${successCount} 个成功, ${failureCount} 个失败`, { id: toastId });
       }
     } catch (err) {
-      console.error(err);
-      toast.error(`转换过程出错: ${err.message}`, { id: toastId });
+      if (err.name === 'AbortError' || err.message === '操作已取消') {
+        console.log('Conversion cancelled');
+        toast.dismiss(toastId);
+        // 不显示错误，因为是用户取消
+      } else {
+        console.error(err);
+        toast.error(`转换过程出错: ${err.message}`, { id: toastId });
+      }
     } finally {
       setIsConverting(false);
+      abortControllerRef.current = null;
     }
   };
 
   return (
-    <motion.div
+    <MotionDiv
       className="feature-container"
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
@@ -1059,7 +1098,7 @@ function ToolDetailContent({ toolName, onBack }) {
           <div className="detail-title-section">
             <h1 className="detail-title">{source}转{target}转换器</h1>
             <p className="detail-desc">
-              在线将{source} Word文档转换为{target}格式。免费工具维护文本格式。
+              {t('toolDetail.description', { source, target })}
             </p>
           </div>
         </div>
@@ -1089,6 +1128,7 @@ function ToolDetailContent({ toolName, onBack }) {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          onClick={() => fileInputRef.current.click()}
         >
           <div className="upload-content">
             <div className="upload-icon-wrapper">
@@ -1099,14 +1139,20 @@ function ToolDetailContent({ toolName, onBack }) {
               </svg>
             </div>
             <div className="upload-text-row">
-              <span className="upload-main-text">在这里拖放你的{source}文件或文件夹</span>
+              <span className="upload-main-text">{t('toolDetail.upload_main_text', { source })}</span>
             </div>
             <p className="upload-sub-text">
-              支持批量上传 {allowedExtensions.length > 0 ? `(${allowedExtensions.join(', ')})` : ''}
+              {t('toolDetail.upload_sub_text')} {allowedExtensions.length > 0 ? `(${allowedExtensions.join(', ')})` : ''}
             </p>
             <div className="upload-buttons-container">
-              <button className="select-file-btn" onClick={() => fileInputRef.current.click()}>
-                + 选择文件
+              <button 
+                className="select-file-btn" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fileInputRef.current.click();
+                }}
+              >
+                + {t('toolDetail.select_files')}
               </button>
             </div>
           </div>
@@ -1120,7 +1166,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 <line x1="12" y1="20" x2="12" y2="4"/>
                 <line x1="6" y1="20" x2="6" y2="14"/>
               </svg>
-              <span>转换选项</span>
+              <span>{t('toolDetail.options.title')}</span>
             </div>
             
             <div className="options-list">
@@ -1129,7 +1175,7 @@ function ToolDetailContent({ toolName, onBack }) {
                   {/* Preview Options */}
                   <div className={`option-group ${expandedSections.preview ? 'expanded' : ''}`}>
                     <div className="option-group-header" onClick={() => toggleSection('preview')}>
-                      <span>预览选项</span>
+                      <span>{t('toolDetail.options.preview_options')}</span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: expandedSections.preview ? 'rotate(180deg)' : 'rotate(0)' }}>
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
@@ -1142,7 +1188,7 @@ function ToolDetailContent({ toolName, onBack }) {
                           checked={htmlOptions.enablePreview}
                           onChange={(e) => setHtmlOptions({...htmlOptions, enablePreview: e.target.checked})}
                         />
-                        <span>启用预览</span>
+                        <span>{t('toolDetail.options.enable_preview')}</span>
                       </label>
                       <label className="checkbox-label">
                         <input 
@@ -1150,14 +1196,14 @@ function ToolDetailContent({ toolName, onBack }) {
                           checked={htmlOptions.codeMode}
                           onChange={(e) => setHtmlOptions({...htmlOptions, codeMode: e.target.checked})}
                         />
-                        <span>转换为源代码（勾选则输出带高亮的代码 PDF）</span>
+                        <span>{t('toolDetail.options.convert_to_code')}</span>
                       </label>
                       <button className="preview-html-btn" onClick={handlePreviewHtml}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                           <circle cx="12" cy="12" r="3" />
                         </svg>
-                        预览 HTML
+                        {t('toolDetail.options.preview_html')}
                       </button>
                     </div>
                   )}
@@ -1166,7 +1212,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {/* CSS Options */}
                 <div className={`option-group ${expandedSections.css ? 'expanded' : ''}`}>
                   <div className="option-group-header" onClick={() => toggleSection('css')}>
-                    <span>CSS 选项</span>
+                    <span>{t('toolDetail.options.css_options')}</span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: expandedSections.css ? 'rotate(180deg)' : 'rotate(0)' }}>
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
@@ -1174,16 +1220,16 @@ function ToolDetailContent({ toolName, onBack }) {
                   {expandedSections.css && (
                     <div className="option-group-content">
                       <div className="sub-option">
-                        <label className="custom-theme-label">CSS 处理</label>
+                        <label className="custom-theme-label">{t('toolDetail.options.css_handling')}</label>
                         <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                           <select 
                             value={htmlOptions.cssHandling}
                             onChange={(e) => setHtmlOptions({...htmlOptions, cssHandling: e.target.value})}
                             className="custom-theme-select"
                           >
-                            <option>保留所有 CSS</option>
-                            <option>内联 CSS</option>
-                            <option>移除 CSS</option>
+                            <option>{t('toolDetail.options.keep_all_css')}</option>
+                            <option>{t('toolDetail.options.inline_css')}</option>
+                            <option>{t('toolDetail.options.remove_css')}</option>
                           </select>
                           <svg 
                             width="12" 
@@ -1203,7 +1249,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {/* Cleanup Options */}
                 <div className={`option-group ${expandedSections.cleanup ? 'expanded' : ''}`}>
                   <div className="option-group-header" onClick={() => toggleSection('cleanup')}>
-                    <span>清理选项</span>
+                    <span>{t('toolDetail.options.cleanup_options')}</span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: expandedSections.cleanup ? 'rotate(180deg)' : 'rotate(0)' }}>
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
@@ -1217,7 +1263,7 @@ function ToolDetailContent({ toolName, onBack }) {
                             checked={htmlOptions.removeScripts}
                             onChange={(e) => setHtmlOptions({...htmlOptions, removeScripts: e.target.checked})}
                           />
-                          <span>移除脚本</span>
+                          <span>{t('toolDetail.options.remove_scripts')}</span>
                         </label>
                         <label className="checkbox-label">
                           <input 
@@ -1225,7 +1271,7 @@ function ToolDetailContent({ toolName, onBack }) {
                             checked={htmlOptions.compressHtml}
                             onChange={(e) => setHtmlOptions({...htmlOptions, compressHtml: e.target.checked})}
                           />
-                          <span>压缩 HTML</span>
+                          <span>{t('toolDetail.options.compress_html')}</span>
                         </label>
                       </div>
                     </div>
@@ -1236,11 +1282,11 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'PDF' && (
                   <div className="option-group expanded">
                     <div className="option-group-header">
-                      <span>页面设置</span>
+                      <span>{t('toolDetail.options.page_settings')}</span>
                     </div>
                     <div className="option-group-content">
                       <div className="sub-option">
-                        <label className="custom-theme-label">页面大小</label>
+                        <label className="custom-theme-label">{t('toolDetail.options.page_size')}</label>
                         <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                           <select 
                             value={htmlOptions.pageSize}
@@ -1263,15 +1309,15 @@ function ToolDetailContent({ toolName, onBack }) {
                         </div>
                       </div>
                       <div className="sub-option">
-                        <label className="custom-theme-label">方向</label>
+                        <label className="custom-theme-label">{t('toolDetail.options.orientation')}</label>
                         <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                           <select 
                             value={htmlOptions.orientation}
                             onChange={(e) => setHtmlOptions({...htmlOptions, orientation: e.target.value})}
                             className="custom-theme-select"
                           >
-                            <option>纵向</option>
-                            <option>横向</option>
+                            <option>{t('toolDetail.options.portrait')}</option>
+                            <option>{t('toolDetail.options.landscape')}</option>
                           </select>
                           <svg 
                             width="12" 
@@ -1292,11 +1338,11 @@ function ToolDetailContent({ toolName, onBack }) {
                 {['GIF', 'JPG', 'PNG', 'WEBP'].includes(target) && (
                   <div className="option-group expanded">
                     <div className="option-group-header">
-                      <span>图片选项</span>
+                      <span>{t('toolDetail.options.image_options')}</span>
                     </div>
                     <div className="option-group-content">
                       <div className="sub-option">
-                        <label>质量 (1-100)</label>
+                        <label>{t('toolDetail.options.quality')} (1-100)</label>
                         <input 
                           type="range" 
                           min="1" 
@@ -1308,7 +1354,7 @@ function ToolDetailContent({ toolName, onBack }) {
                       </div>
                       
                       <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
-                        <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                        <label style={{ minWidth: '60px', marginBottom: 0 }}>{t('toolDetail.options.background_color')}</label>
                         <input 
                           type="color" 
                           value={convertOptions.backgroundColor}
@@ -1341,7 +1387,7 @@ function ToolDetailContent({ toolName, onBack }) {
                         <polyline points="14 2 14 8 20 8"/>
                         <line x1="9" y1="15" x2="15" y2="15"/>
                       </svg>
-                      <span>页面选择</span>
+                      <span>{t('toolDetail.options.page_selection')}</span>
                     </div>
                     <svg 
                       width="16" 
@@ -1359,16 +1405,16 @@ function ToolDetailContent({ toolName, onBack }) {
                   {isPdfPagesExpanded && (
                     <div className="option-group-content">
                       <div className="sub-option">
-                        <label className="custom-theme-label">选择页面</label>
+                        <label className="custom-theme-label">{t('toolDetail.options.select_pages')}</label>
                         <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                           <select 
                             value={convertOptions.pdfPageSelection}
                             onChange={(e) => setConvertOptions({...convertOptions, pdfPageSelection: e.target.value})}
                             className="custom-theme-select"
                           >
-                            <option>所有页面</option>
-                            <option>页面范围</option>
-                            <option>特定页面</option>
+                            <option>{t('toolDetail.options.all_pages')}</option>
+                            <option>{t('toolDetail.options.page_range')}</option>
+                            <option>{t('toolDetail.options.specific_pages')}</option>
                           </select>
                           <svg 
                             width="12" 
@@ -1382,11 +1428,11 @@ function ToolDetailContent({ toolName, onBack }) {
                         </div>
                       </div>
 
-                      {convertOptions.pdfPageSelection === '页面范围' && (
+                      {convertOptions.pdfPageSelection === t('toolDetail.options.page_range') && (
                         <div className="sub-option" style={{ marginTop: '12px' }}>
                           <input 
                             type="text" 
-                            placeholder="例如: 1-5" 
+                            placeholder={t('toolDetail.options.page_range_placeholder')}
                             value={convertOptions.pdfCustomRange}
                             onChange={(e) => setConvertOptions({...convertOptions, pdfCustomRange: e.target.value})}
                             onClick={(e) => e.stopPropagation()}
@@ -1408,11 +1454,11 @@ function ToolDetailContent({ toolName, onBack }) {
                         </div>
                       )}
                       
-                      {convertOptions.pdfPageSelection === '特定页面' && (
+                      {convertOptions.pdfPageSelection === t('toolDetail.options.specific_pages') && (
                         <div className="sub-option" style={{ marginTop: '12px' }}>
                           <input 
                             type="text" 
-                            placeholder="例如: 1,3,5" 
+                            placeholder={t('toolDetail.options.specific_pages_placeholder')}
                             value={convertOptions.pdfCustomRange}
                             onChange={(e) => setConvertOptions({...convertOptions, pdfCustomRange: e.target.value})}
                             onClick={(e) => e.stopPropagation()}
@@ -1475,12 +1521,12 @@ function ToolDetailContent({ toolName, onBack }) {
                           <circle cx="12" cy="12" r="10"/>
                           <polygon points="10 8 16 12 10 16 10 8"/>
                         </svg>
-                        <span>动画设置</span>
+                        <span>{t('toolDetail.options.animation_settings')}</span>
                       </div>
                     </div>
                     <div className="option-group-content">
                       <div className="sub-option">
-                        <label>动画延迟 (毫秒)</label>
+                        <label>{t('toolDetail.options.animation_delay')}</label>
                         <input 
                           type="number" 
                           value={convertOptions.animationDelay}
@@ -1496,7 +1542,7 @@ function ToolDetailContent({ toolName, onBack }) {
                           checked={convertOptions.loopAnimation}
                           onChange={(e) => setConvertOptions({...convertOptions, loopAnimation: e.target.checked})}
                         />
-                        <span>循环播放</span>
+                        <span>{t('toolDetail.options.loop_animation')}</span>
                       </label>
                     </div>
                   </div>
@@ -1507,7 +1553,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'SPEECH' && (
                   <>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>语音速度</label>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>{t('toolDetail.options.speech_speed')}</label>
                       <input 
                         type="range" 
                         min="0.5" 
@@ -1523,7 +1569,7 @@ function ToolDetailContent({ toolName, onBack }) {
                     </div>
 
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>语音音调</label>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>{t('toolDetail.options.speech_pitch')}</label>
                       <input 
                         type="range" 
                         min="0.5" 
@@ -2124,17 +2170,41 @@ function ToolDetailContent({ toolName, onBack }) {
           <div className="file-list-actions">
             <button className="file-action-btn" onClick={() => {}} disabled={files.length === 0}>全选</button>
             <button className="file-action-btn" onClick={() => {}} disabled={files.length === 0}>取消全选</button>
-            <button 
-              className="file-action-btn file-action-btn-primary"
-              onClick={handleConvert}
-              disabled={isConverting || files.length === 0}
-            >
-              {isConverting ? '转换中...' : '全部转换'}
-            </button>
-            <button className="file-action-btn" onClick={handleClearAll} disabled={files.length === 0}>清空全部</button>
-            <button className="file-action-btn" disabled={files.length === 0} onClick={handleDownloadAll}>全部下载</button>
+            {isConverting ? (
+              <button 
+                className="file-action-btn file-action-btn-danger"
+                onClick={handleCancelConversion}
+              >
+                取消转换
+              </button>
+            ) : (
+              <button 
+                className="file-action-btn file-action-btn-primary"
+                onClick={handleConvert}
+                disabled={files.length === 0}
+              >
+                全部转换
+              </button>
+            )}
+            <button className="file-action-btn" onClick={handleClearAll} disabled={files.length === 0 || isConverting}>清空全部</button>
+            <button className="file-action-btn" disabled={files.length === 0 || isConverting} onClick={handleDownloadAll}>全部下载</button>
           </div>
         </div>
+        
+        {isConverting && (
+          <div className="progress-bar-container">
+            <div className="progress-info">
+              <span>正在处理: {progress.current} / {progress.total}</span>
+              <span>{progress.percent}%</span>
+            </div>
+            <div className="progress-track">
+              <div 
+                className="progress-fill" 
+                style={{ width: `${progress.percent}%` }}
+              ></div>
+            </div>
+          </div>
+        )}
         
         <div className="file-list-body">
           {files.length > 0 ? (
@@ -2257,7 +2327,7 @@ function ToolDetailContent({ toolName, onBack }) {
           </div>
         </div>
       )}
-    </motion.div>
+    </MotionDiv>
   );
 }
 

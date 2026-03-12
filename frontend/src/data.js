@@ -8,11 +8,11 @@ import {
 } from '@ant-design/icons';
 
 export const categories = {
-  '主要功能': [
+  'major_functions': [
     {
-      name: 'DOCX 转换器',
+      name: 'docx_converter',
       icon: FileWordOutlined,
-      description: 'DOCX 转换器',
+      description: 'docx_converter_desc',
       tools: [
         {
           name: 'DOCX To PDF',
@@ -47,9 +47,9 @@ export const categories = {
       ]
     },
     {
-      name: 'HTML 转换器',
+      name: 'html_converter',
       icon: CodeOutlined,
-      description: 'HTML 转换器',
+      description: 'html_converter_desc',
       tools: [
         {
           name: 'HTML To PDF',
@@ -99,9 +99,9 @@ export const categories = {
       ]
     },
     {
-      name: 'JSON 转换器',
+      name: 'json_converter',
       icon: CodeOutlined,
-      description: 'JSON 转换器',
+      description: 'json_converter_desc',
       tools: [
         {
           name: 'JSON To PDF',
@@ -156,9 +156,9 @@ export const categories = {
       ]
     },
     {
-      name: 'PDF 转换器',
+      name: 'pdf_converter',
       icon: FilePdfOutlined,
-      description: 'PDF 转换器',
+      description: 'pdf_converter_desc',
       tools: [
         {
           name: 'PDF To DOC',
@@ -253,9 +253,9 @@ export const categories = {
       ]
     },
     {
-      name: 'PPT 转换器',
+      name: 'ppt_converter',
       icon: FilePdfOutlined,
-      description: 'PPT 转换器',
+      description: 'ppt_converter_desc',
       tools: [
         {
           name: 'PPT To PDF',
@@ -280,9 +280,9 @@ export const categories = {
       ]
     },
     {
-      name: 'Excel 转换器',
+      name: 'excel_converter',
       icon: FileExcelOutlined,
-      description: 'Excel 转换器',
+      description: 'excel_converter_desc',
       tools: [
         {
           name: 'Excel To PDF',
@@ -307,9 +307,9 @@ export const categories = {
       ]
     },
     {
-      name: 'TXT 转换器',
+      name: 'txt_converter',
       icon: FileTextOutlined,
-      description: 'TXT 转换器',
+      description: 'txt_converter_desc',
       tools: [
         {
           name: 'TXT To PDF',
@@ -359,9 +359,9 @@ export const categories = {
       ]
     },
     {
-      name: 'XML 转换器',
+      name: 'xml_converter',
       icon: CodeOutlined,
-      description: 'XML 转换器',
+      description: 'xml_converter_desc',
       tools: [
         {
           name: 'XML To JSON',

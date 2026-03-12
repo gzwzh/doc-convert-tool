@@ -1,6 +1,6 @@
 # backend/api/routes.py
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from typing import Optional
+from typing import Optional, List
 from backend.services.converter_service import ConverterService, UPLOAD_DIR
 from backend.utils.file_handler import FileHandler
 from backend.utils.validator import Validator
@@ -173,6 +173,7 @@ async def convert_general(
         if not filename:
             raise ValueError("Filename is missing")
         source_format = filename.split('.')[-1].lower()
+        print(f"[API] 源格式: {source_format}")
         
         # 2. 验证目标格式
         allowed_targets = [tgt for src, tgt in converter_service.converters.keys() if src == source_format]
@@ -180,9 +181,12 @@ async def convert_general(
             raise ValueError(f"Unsupported source format: {source_format}")
             
         target_format = validator.validate_target_format(target_format, allowed_targets)
+        print(f"[API] 验证目标格式成功: {target_format}")
         
         # 3. 保存上传文件
+        print("[API] 开始保存上传文件...")
         input_path = await file_handler.save_upload_file(file)
+        print(f"[API] 文件已保存: {input_path}")
         
         # 4. 准备转换选项
         options = {
@@ -214,23 +218,30 @@ async def convert_general(
         }
         
         # 5. 执行转换
+        print(f"[API] 调用 converter_service.convert_file...")
         result = converter_service.convert_file(
             input_path, 
             target_format, 
             original_filename=file.filename,
             **options
         )
+        print(f"[API] 转换完成，结果: {result}")
         
         return result
         
     except ValueError as e:
-        print(f"ValueError during conversion: {e}")
+        print(f"[API] ValueError during conversion: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        print(f"Unexpected error during conversion: {e}")
         import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+        traceback_str = traceback.format_exc()
+        # 使用 logger 记录错误堆栈，确保写入日志文件
+        from backend.utils.logger import logger
+        logger.error(f"[API] Unexpected error during conversion: {e}\n{traceback_str}")
+        print(f"[API] Unexpected error during conversion: {e}")
+        print(traceback_str)
+        # 返回详细的错误信息，方便调试
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}\nTraceback: {traceback_str}")
     finally:
         # 6. 清理临时上传文件
         if input_path:

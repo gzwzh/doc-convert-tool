@@ -1,12 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import AdBanner from './AdBanner';
 import SoftwareCustomization from './SoftwareCustomization';
 import QuestionFeedback from './QuestionFeedback';
 import '../App.css';
 
 function ToolSidebar({ sections, activeSection, onSectionClick, onToolClick }) {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const searchResults = useMemo(() => {
+    if (!searchTerm.trim() || !sections) {
+      return [];
+    }
+    const results = [];
+    sections.forEach(section => {
+      if (section.tools) {
+        section.tools.forEach(tool => {
+          if (tool.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+            results.push({ ...tool, section });
+          }
+        });
+      }
+    });
+    return results;
+  }, [searchTerm, sections]);
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef(null);
 
@@ -20,28 +37,11 @@ function ToolSidebar({ sections, activeSection, onSectionClick, onToolClick }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setSearchResults([]);
-      setShowDropdown(false);
-      return;
-    }
-
-    const results = [];
-    if (sections) {
-      sections.forEach(section => {
-        if (section.tools) {
-          section.tools.forEach(tool => {
-            if (tool.name.toLowerCase().includes(searchTerm.toLowerCase())) {
-              results.push({ ...tool, section });
-            }
-          });
-        }
-      });
-    }
-    setSearchResults(results);
-    setShowDropdown(true);
-  }, [searchTerm, sections]);
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    setShowDropdown(!!value.trim());
+  };
 
   const handleSearchResultClick = (result) => {
     // 1. Clear search
@@ -68,9 +68,9 @@ function ToolSidebar({ sections, activeSection, onSectionClick, onToolClick }) {
           <input
             type="text"
             className="sidebar-search-input"
-            placeholder="搜索功能..."
+            placeholder={t('sidebar.search_placeholder')}
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             onFocus={() => {
               if (searchTerm.trim()) setShowDropdown(true);
             }}
@@ -92,35 +92,38 @@ function ToolSidebar({ sections, activeSection, onSectionClick, onToolClick }) {
                       part.toLowerCase() === searchTerm.toLowerCase() ? <span key={i} className="search-result-match">{part}</span> : part
                     )}
                   </span>
-                  <span className="search-result-category">{result.section.name}</span>
+                  <span className="search-result-category">{t(`categories.${result.section.name}`)}</span>
                 </div>
               ))
             ) : (
-              <div className="search-no-results">未找到相关功能</div>
+              <div className="search-no-results">{t('sidebar.no_results')}</div>
             )}
           </div>
         )}
       </div>
 
-      <div className="sidebar-list">
-        {sections.map((section) => (
-          <div
+      <nav className="sidebar-nav">
+        {sections.map(section => (
+          <div 
             key={section.name}
             className={`sidebar-item ${activeSection?.name === section.name ? 'active' : ''}`}
             onClick={() => onSectionClick(section)}
           >
-            <span>{section.name}</span>
+            <span className="sidebar-text">{t(`categories.${section.name}`)}</span>
             {activeSection?.name === section.name && (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--primary-color)' }}>
+              <svg className="sidebar-active-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
             )}
           </div>
         ))}
+      </nav>
+
+      {/* 底部功能区 */}
+      <div className="sidebar-bottom-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <SoftwareCustomization />
+        <QuestionFeedback />
       </div>
-      
-      <SoftwareCustomization />
-      <QuestionFeedback />
       
       <AdBanner
           positions={['adv_position_04', 'adv_position_05']}

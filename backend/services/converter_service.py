@@ -1,6 +1,7 @@
 import os
 import uuid
 from typing import Dict, Any, List
+from backend.utils.file_handler import FileHandler
 from backend.converters.json_to_yaml import JsonToYamlConverter
 from backend.converters.json_to_xml import JsonToXmlConverter
 from backend.converters.xml_to_json import XmlToJsonConverter
@@ -220,10 +221,16 @@ class ConverterService:
         if converter_key not in self.converters:
             raise ValueError(f"Unsupported conversion: {source_format} to {target_format}")
         
+        converter = self.converters[converter_key]
+        print(f"[ConverterService] 使用转换器: {type(converter).__name__}")
+        
         # 生成输出路径，使用优化的文件名策略
         if original_filename:
+            # 清理文件名 (移除路径/非法字符)
+            safe_filename = FileHandler.sanitize_filename(original_filename)
+            
             # 移除原始扩展名，保留文件名
-            base_name = os.path.splitext(original_filename)[0]
+            base_name = os.path.splitext(safe_filename)[0]
             display_name = f"{base_name}.{target_format}"
             
             # 生成短哈希（6位）确保唯一性
@@ -244,7 +251,6 @@ class ConverterService:
             output_path = os.path.join(DOWNLOAD_DIR, storage_filename)
         
         # 调用具体转换器
-        converter = self.converters[converter_key]
         result = converter.convert(input_path, output_path, **options)
         
         # 检查实际输出文件（可能是 ZIP）
