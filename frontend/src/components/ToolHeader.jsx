@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../hooks/useTheme';
-import { Avatar } from 'antd';
-import { UserOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Avatar, Select } from 'antd';
+import { UserOutlined, LoadingOutlined, GlobalOutlined } from '@ant-design/icons';
 import AdBanner from './AdBanner';
 import { useUserStore } from '../stores/useUserStore';
 import LoginModal from './LoginModal';
@@ -10,10 +10,46 @@ import '../styles/LoginModal.css';
 import '../App.css';
 
 function ToolHeader({ onHomeClick, activeSection }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { isLoggedIn, userInfo, isPolling, showLoginModal, init } = useUserStore();
   const { theme, toggleTheme } = useTheme();
   const [appVersion, setAppVersion] = useState('v1.0.0');
+
+  const languages = [
+    { value: 'zh_CN', label: t('header.languages.zh_CN') },
+    { value: 'zh_TW', label: t('header.languages.zh_TW') },
+    { value: 'en', label: t('header.languages.en') },
+    { value: 'ar', label: t('header.languages.ar') },
+    { value: 'bn', label: t('header.languages.bn') },
+    { value: 'de', label: t('header.languages.de') },
+    { value: 'es', label: t('header.languages.es') },
+    { value: 'fa', label: t('header.languages.fa') },
+    { value: 'fr', label: t('header.languages.fr') },
+    { value: 'he', label: t('header.languages.he') },
+    { value: 'hi', label: t('header.languages.hi') },
+    { value: 'id', label: t('header.languages.id') },
+    { value: 'it', label: t('header.languages.it') },
+    { value: 'ja', label: t('header.languages.ja') },
+    { value: 'ko', label: t('header.languages.ko') },
+    { value: 'ms', label: t('header.languages.ms') },
+    { value: 'nl', label: t('header.languages.nl') },
+    { value: 'pl', label: t('header.languages.pl') },
+    { value: 'pt', label: t('header.languages.pt') },
+    { value: 'pt_BR', label: t('header.languages.pt_BR') },
+    { value: 'ru', label: t('header.languages.ru') },
+    { value: 'sw', label: t('header.languages.sw') },
+    { value: 'ta', label: t('header.languages.ta') },
+    { value: 'th', label: t('header.languages.th') },
+    { value: 'tl', label: t('header.languages.tl') },
+    { value: 'tr', label: t('header.languages.tr') },
+    { value: 'uk', label: t('header.languages.uk') },
+    { value: 'ur', label: t('header.languages.ur') },
+    { value: 'vi', label: t('header.languages.vi') }
+  ];
+
+  const handleLanguageChange = (value) => {
+    i18n.changeLanguage(value);
+  };
 
   useEffect(() => {
     init();
@@ -130,6 +166,32 @@ function ToolHeader({ onHomeClick, activeSection }) {
         />
         <div className="user-btn-container">
           {renderUserArea()}
+        </div>
+
+        {/* Language Select */}
+        <div className="language-selector" style={{ display: 'flex', alignItems: 'center', margin: '0 8px' }}>
+          <Select
+            value={i18n.language}
+            onChange={handleLanguageChange}
+            options={languages}
+            variant="borderless"
+            popupMatchSelectWidth={false}
+            suffixIcon={<GlobalOutlined style={{ fontSize: '16px', color: 'var(--text-secondary)' }} />}
+            style={{ 
+              width: 'auto',
+              minWidth: '80px',
+              fontSize: '13px'
+            }}
+            styles={{
+              popup: {
+                root: {
+                  borderRadius: '12px',
+                  padding: '4px',
+                  boxShadow: 'var(--shadow-lg)'
+                }
+              }
+            }}
+          />
         </div>
 
         {/* Theme Toggle */}
