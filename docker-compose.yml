@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: converter-backend
+    environment:
+      - BACKEND_PORT=8002
+      - BACKEND_UPLOAD_DIR=/data/uploads
+      - BACKEND_DOWNLOAD_DIR=/data/downloads
+      - BACKEND_LOG_DIR=/data/logs
+    volumes:
+      - ./data:/data
+    restart: always
+    networks:
+      - converter-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: converter-frontend
+    ports:
+      - "3016:80"
+    depends_on:
+      - backend
+    restart: always
+    networks:
+      - converter-network
+
+networks:
+  converter-network:
+    driver: bridge

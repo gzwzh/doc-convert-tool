@@ -1,4 +1,13 @@
 # backend/api/routes.py
+import base64
+import hashlib
+import hmac
+import json
+import os
+import time
+import urllib.error
+import urllib.request
+import uuid
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from typing import Optional, List
 from backend.services.converter_service import ConverterService, UPLOAD_DIR
@@ -11,6 +20,46 @@ converter_service = ConverterService()
 file_handler = FileHandler(UPLOAD_DIR)
 validator = Validator()
 
+AUTH_BASE_URL = "https://api-web.kunqiongai.com"
+LOGIN_SECRET_KEY = os.environ.get("DESKTOP_LOGIN_SECRET_KEY", "7530bfb1ad6c41627b0f0620078fa5ed")
+
+
+def _encode_signed_nonce(signed_nonce: dict) -> str:
+    encoded = base64.urlsafe_b64encode(
+        json.dumps(signed_nonce, separators=(",", ":")).encode("utf-8")
+    ).decode("utf-8")
+    return encoded.rstrip("=")
+
+
+def _generate_signed_nonce() -> dict:
+    nonce = uuid.uuid4().hex
+    timestamp = int(time.time())
+    message = f"{nonce}|{timestamp}".encode("utf-8")
+    signature = base64.b64encode(
+        hmac.new(LOGIN_SECRET_KEY.encode("utf-8"), message, hashlib.sha256).digest()
+    ).decode("utf-8")
+    return {
+        "nonce": nonce,
+        "timestamp": timestamp,
+        "signature": signature,
+    }
+
+
+def _fetch_base_web_login_url() -> str:
+    request = urllib.request.Request(
+        f"{AUTH_BASE_URL}/soft_desktop/get_web_login_url",
+        data=b"",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=10) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+
+    if payload.get("code") == 1 and payload.get("data", {}).get("login_url"):
+        return payload["data"]["login_url"]
+
+    raise ValueError(payload.get("msg") or "Failed to fetch login URL")
+
 @router.get("/health")
 async def health_check():
     """健康检查"""
@@ -20,6 +69,22 @@ async def health_check():
 async def diagnostics():
     """诊断环境接口"""
     return run_all_diagnostics()
+
+
+@router.post("/auth/login-url")
+async def get_auth_login_url():
+    try:
+        signed_nonce = _generate_signed_nonce()
+        encoded_nonce = _encode_signed_nonce(signed_nonce)
+        base_login_url = _fetch_base_web_login_url()
+        login_url = f"{base_login_url}?client_type=desktop&client_nonce={encoded_nonce}"
+        return {"url": login_url, "encoded_nonce": encoded_nonce}
+    except urllib.error.URLError as exc:
+        raise HTTPException(status_code=502, detail=f"Upstream auth service unavailable: {exc}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to build login URL: {exc}") from exc
 
 @router.post("/convert/json")
 async def convert_json(

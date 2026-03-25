@@ -5,6 +5,7 @@ Office文件转PDF - 混合策略（COM + LibreOffice）
 """
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -40,19 +41,21 @@ def get_bundled_libreoffice_path() -> Optional[str]:
       └── libreoffice/
           └── program/soffice.exe
     """
+    executable_name = 'soffice.exe' if sys.platform == 'win32' else 'soffice'
+
     if is_frozen():
         # 打包环境: 从exe所在目录向上找到resources，再找libreoffice
         # base_path 是 resources/backend/dist
         base_path = get_app_base_path()
         # 向上跳两级到达 resources 目录
         resources_path = os.path.dirname(os.path.dirname(base_path))
-        libreoffice_path = os.path.join(resources_path, 'libreoffice', 'program', 'soffice.exe')
+        libreoffice_path = os.path.join(resources_path, 'libreoffice', 'program', executable_name)
         if os.path.exists(libreoffice_path):
             return libreoffice_path
     else:
         # 开发环境: get_app_base_path() 已经是项目根目录
         project_root = get_app_base_path()
-        libreoffice_path = os.path.join(project_root, 'resources', 'libreoffice', 'program', 'soffice.exe')
+        libreoffice_path = os.path.join(project_root, 'resources', 'libreoffice', 'program', executable_name)
         if os.path.exists(libreoffice_path):
             return libreoffice_path
     
@@ -93,6 +96,10 @@ class OfficeToPDF:
             for path in system_paths:
                 if os.path.exists(path):
                     return path
+        
+        libreoffice_path = shutil.which('soffice') or shutil.which('libreoffice')
+        if libreoffice_path:
+            return libreoffice_path
         
         return None
     

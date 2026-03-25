@@ -56,3 +56,15 @@ nsis:
   artifactName: installer/${productName}-Setup-${version}.${ext}
 portable:
   artifactName: portable/${productName}-Portable-${version}.${ext}
+linux:
+  category: Utility
+  executableName: doc-convert-tool
+  icon: build/icons
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: tar.gz
+      arch:
+        - x64
+  artifactName: linux/${productName}-${version}-${arch}.${ext}

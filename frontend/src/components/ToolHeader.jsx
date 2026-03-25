@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../hooks/useTheme';
 import { Avatar, Select } from 'antd';
 import { UserOutlined, LoadingOutlined, GlobalOutlined } from '@ant-design/icons';
-import AdBanner from './AdBanner';
 import { useUserStore } from '../stores/useUserStore';
 import LoginModal from './LoginModal';
 import '../styles/LoginModal.css';
@@ -53,7 +52,6 @@ function ToolHeader({ onHomeClick, activeSection }) {
 
   useEffect(() => {
     init();
-    // 获取真实版本号
     const fetchVersion = async () => {
       if (window.electronAPI && window.electronAPI.getVersion) {
         try {
@@ -95,7 +93,6 @@ function ToolHeader({ onHomeClick, activeSection }) {
     );
   };
 
-  // 窗口控制逻辑
   const handleMin = () => {
     if (window.electronAPI) {
       window.electronAPI.windowMinimize();
@@ -127,9 +124,8 @@ function ToolHeader({ onHomeClick, activeSection }) {
             <div className="nav-app-subtitle">{t('header.app_subtitle')}</div>
           </div>
         </div>
-        
-        {/* 我的主页按钮 */}
-        <button 
+
+        <button
           className={`nav-home-btn ${activeSection === '我的主页' || activeSection === t('header.home') ? 'active' : ''}`}
           onClick={onHomeClick}
           style={{
@@ -158,17 +154,13 @@ function ToolHeader({ onHomeClick, activeSection }) {
       </div>
 
       <div className="nav-right">
-        <AdBanner
-          positions={['adv_position_01']}
-          ratio={4}
-          placeholderLabel="AD (4:1)"
-          width={160}
-        />
+        <div className="desktop-ad-slot">
+          <div className="desktop-ad-pill">AI</div>
+        </div>
         <div className="user-btn-container">
           {renderUserArea()}
         </div>
 
-        {/* Language Select */}
         <div className="language-selector" style={{ display: 'flex', alignItems: 'center', margin: '0 8px' }}>
           <Select
             value={i18n.language}
@@ -177,7 +169,7 @@ function ToolHeader({ onHomeClick, activeSection }) {
             variant="borderless"
             popupMatchSelectWidth={false}
             suffixIcon={<GlobalOutlined style={{ fontSize: '16px', color: 'var(--text-secondary)' }} />}
-            style={{ 
+            style={{
               width: 'auto',
               minWidth: '80px',
               fontSize: '13px'
@@ -194,32 +186,17 @@ function ToolHeader({ onHomeClick, activeSection }) {
           />
         </div>
 
-        {/* Theme Toggle */}
         <button
           className="window-control-btn"
           onClick={toggleTheme}
           title={theme === 'light' ? '切换深色模式' : '切换浅色模式'}
         >
           {theme === 'light' ? (
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
             </svg>
           ) : (
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="5"></circle>
               <line x1="12" y1="1" x2="12" y2="3"></line>
               <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -233,7 +210,6 @@ function ToolHeader({ onHomeClick, activeSection }) {
           )}
         </button>
 
-        {/* 窗口控制器 */}
         <div className="window-controls">
           <button className="window-control-btn" onClick={handleMin} title="最小化">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

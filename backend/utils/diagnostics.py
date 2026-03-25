@@ -91,7 +91,15 @@ def check_browsers() -> Dict[str, Any]:
     # 也可以通过 which 检查
     if not results['chrome'] and shutil.which('chrome'):
         results['chrome'] = True
+    if not results['chrome'] and shutil.which('google-chrome'):
+        results['chrome'] = True
+    if not results['chrome'] and shutil.which('chromium'):
+        results['chrome'] = True
+    if not results['chrome'] and shutil.which('chromium-browser'):
+        results['chrome'] = True
     if not results['edge'] and shutil.which('msedge'):
+        results['edge'] = True
+    if not results['edge'] and shutil.which('microsoft-edge'):
         results['edge'] = True
         
     return results

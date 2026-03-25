@@ -69,3 +69,28 @@ logs/
 tmp/
 temp/
 frontend-ui-template/
+tmp-*.html
+
+# Test and browser automation artifacts
+.playwright-cli/
+.tmp-edge/
+
+# Deployment/package snapshots
+.baota-deploy-package/
+.baota-deploy-package-cn/
+.baota-deploy-package-cn-fix/
+.baota-deploy-package-seo/
+*.zip
+
+# Extracted/bundled app artifacts
+squashfs-root/
+zip_root/
+
+# Local verification/debug outputs
+debug_output.txt
+debug_docx_output.txt
+conversion_debug.log
+verify_fix_log.txt
+
+# Local test assets
+test/

@@ -3,6 +3,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const isDev = require('electron-is-dev');
 const fs = require('fs');
+const os = require('os');
 
 // 加载国际化配置
 const zhLocale = require('./locales/zh.json');
@@ -24,6 +25,45 @@ const pkg = require('../package.json');
 const SOFTWARE_ID = pkg.softwareId || '10031';
 const UPDATE_CHECK_URL = 'http://software.kunqiongai.com:8000/api/v1/updates/check/';
 
+function isWindows() {
+  return process.platform === 'win32';
+}
+
+function isWsl() {
+  return process.platform === 'linux' && (
+    Boolean(process.env.WSL_INTEROP) ||
+    os.release().toLowerCase().includes('microsoft')
+  );
+}
+
+function getBackendExecutablePath(appPath) {
+  const backendDir = path.join(appPath, 'backend', 'dist', 'backend-server');
+  const executableName = isWindows() ? 'backend-server.exe' : 'backend-server';
+  return path.join(backendDir, executableName);
+}
+
+function openExternalUrl(url) {
+  if (isWsl()) {
+    return new Promise((resolve, reject) => {
+      const opener = spawn('powershell.exe', [
+        '-NoProfile',
+        '-Command',
+        'Start-Process',
+        `'${url.replace(/'/g, "''")}'`
+      ], {
+        detached: true,
+        stdio: 'ignore'
+      });
+
+      opener.on('error', reject);
+      opener.unref();
+      resolve();
+    });
+  }
+
+  return shell.openExternal(url);
+}
+
 // 动态获取当前版本
 function getCurrentVersion() {
   try {
@@ -42,6 +82,7 @@ let backendProcess;
 
 // 检查更新
 async function checkUpdate() {
+  if (!isWindows()) return;
   if (isDev) return; // 开发环境跳过更新检查
 
   const currentVersion = getCurrentVersion();
@@ -94,6 +135,10 @@ function handleUpdate(updateInfo) {
 
 // 启动更新程序
 function startUpdater(updateInfo) {
+  if (!isWindows()) {
+    console.log('Auto update is only enabled on Windows builds.');
+    return;
+  }
   const appPath = getAppPath();
   const updaterPath = path.join(appPath, 'updater.exe');
   
@@ -137,13 +182,14 @@ function startBackend() {
   const appPath = getAppPath();
   const backendPath = isDev 
     ? path.join(appPath, 'backend', 'main.py')
-    : path.join(appPath, 'backend', 'dist', 'backend-server', 'backend-server.exe');
+    : getBackendExecutablePath(appPath);
 
   console.log('启动后端服务:', backendPath);
 
   if (isDev) {
     // 开发环境：使用 Python 运行
-    backendProcess = spawn('python', [backendPath], {
+    const pythonCommand = isWindows() ? 'python' : 'python3';
+    backendProcess = spawn(pythonCommand, [backendPath], {
       cwd: path.dirname(backendPath),
       env: { ...process.env, BACKEND_PORT: '8002' }
     });
@@ -153,7 +199,7 @@ function startBackend() {
       backendProcess = spawn(backendPath, [], {
         cwd: path.dirname(backendPath),
         env: { ...process.env, BACKEND_PORT: '8002' },
-        windowsHide: true
+        windowsHide: isWindows()
       });
     } else {
       console.error('后端程序不存在:', backendPath);
@@ -196,7 +242,7 @@ function createWindow() {
       webSecurity: false, // 允许加载本地资源
       partition: 'persist:main' // 使用持久化分区，方便后续清理缓存
     },
-    icon: path.join(__dirname, '..', 'frontend', 'public', 'app.ico'),
+    icon: isWindows() ? path.join(__dirname, '..', 'frontend', 'public', 'app.ico') : undefined,
     show: false,
     backgroundColor: '#ffffff',
     titleBarStyle: 'hidden' // 隐藏标题栏
@@ -249,7 +295,9 @@ function createWindow() {
 
   // 处理 window.open 调用，在外部浏览器中打开
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    openExternalUrl(url).catch((error) => {
+      console.error('Failed to open external URL:', error);
+    });
     return { action: 'deny' };
   });
 }
@@ -336,7 +384,7 @@ ipcMain.handle('window-is-maximized', () => {
 // 外部浏览器打开 URL
 ipcMain.handle('open-external', async (event, url) => {
   if (url) {
-    await shell.openExternal(url);
+    await openExternalUrl(url);
   }
 });
 

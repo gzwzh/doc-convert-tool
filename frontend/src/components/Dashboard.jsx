@@ -7,11 +7,11 @@ import '../App.css';
 function Dashboard({ history, favorites, onToolClick, onFavoriteToggle }) {
   const { t } = useTranslation();
   const favoriteTools = favorites
-    .map(name => findToolByName(name))
-    .filter(Boolean); // Remove nulls if tool name changed or removed
+    .map((name) => findToolByName(name))
+    .filter(Boolean);
 
   const historyTools = history
-    .map(name => findToolByName(name))
+    .map((name) => findToolByName(name))
     .filter(Boolean);
 
   const renderToolCard = (tool, isFavorite) => {
@@ -19,11 +19,10 @@ function Dashboard({ history, favorites, onToolClick, onFavoriteToggle }) {
     const parts = tool.name.split(' To ');
     const source = parts[0] || 'TOOL';
     const target = parts[1] || 'BOX';
-    const Icon = tool.icon;
 
     return (
-      <div 
-        key={tool.name} 
+      <div
+        key={tool.name}
         className="tool-card dashboard-card"
         onClick={() => onToolClick(tool)}
       >
@@ -35,7 +34,7 @@ function Dashboard({ history, favorites, onToolClick, onFavoriteToggle }) {
         <div className="card-content">
           <div className="card-header-row">
             <h3 className="card-title">{tool.name}</h3>
-            <button 
+            <button
               className="favorite-btn"
               onClick={(e) => {
                 e.stopPropagation();
@@ -61,10 +60,10 @@ function Dashboard({ history, favorites, onToolClick, onFavoriteToggle }) {
           {t('dashboard.my_favorites')}
         </h2>
       </div>
-      
+
       {favoriteTools.length > 0 ? (
         <div className="card-grid">
-          {favoriteTools.map(tool => renderToolCard(tool, true))}
+          {favoriteTools.map((tool) => renderToolCard(tool, true))}
         </div>
       ) : (
         <div className="empty-state">
@@ -72,7 +71,7 @@ function Dashboard({ history, favorites, onToolClick, onFavoriteToggle }) {
         </div>
       )}
 
-      <div className="section-header" style={{ marginTop: '40px' }}>
+      <div className="section-header dashboard-section-break">
         <div className="section-divider"></div>
         <h2 className="section-title">
           <HistoryOutlined style={{ marginRight: 8 }} />
@@ -82,7 +81,7 @@ function Dashboard({ history, favorites, onToolClick, onFavoriteToggle }) {
 
       {historyTools.length > 0 ? (
         <div className="card-grid">
-          {historyTools.map(tool => renderToolCard(tool, favorites.includes(tool.name)))}
+          {historyTools.map((tool) => renderToolCard(tool, favorites.includes(tool.name)))}
         </div>
       ) : (
         <div className="empty-state">

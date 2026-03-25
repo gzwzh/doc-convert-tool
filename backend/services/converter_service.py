@@ -1,4 +1,5 @@
 import os
+import platform
 import uuid
 from typing import Dict, Any, List
 from backend.utils.file_handler import FileHandler
@@ -77,12 +78,15 @@ if getattr(sys, 'frozen', False):
     # 打包后，使用用户目录
     import tempfile
     base_dir = os.path.join(tempfile.gettempdir(), 'doc-converter')
-    UPLOAD_DIR = os.path.join(base_dir, 'uploads')
-    DOWNLOAD_DIR = os.path.join(base_dir, 'downloads')
+    default_upload_dir = os.path.join(base_dir, 'uploads')
+    default_download_dir = os.path.join(base_dir, 'downloads')
 else:
     # 开发环境，使用项目目录
-    UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
-    DOWNLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "downloads"))
+    default_upload_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
+    default_download_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "downloads"))
+
+UPLOAD_DIR = os.path.abspath(os.environ.get("BACKEND_UPLOAD_DIR", default_upload_dir))
+DOWNLOAD_DIR = os.path.abspath(os.environ.get("BACKEND_DOWNLOAD_DIR", default_download_dir))
 
 # 确保目录存在
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -92,6 +96,7 @@ class ConverterService:
     """转换服务编排层"""
     
     def __init__(self):
+        is_windows = platform.system() == "Windows"
         # 注册所有转换器
         # key: (source_format, target_format)
         self.converters = {
@@ -209,6 +214,15 @@ class ConverterService:
             ('txt', 'csv'): TxtToCsvConverter(),
             ('txt', 'hex'): TxtToHexConverter(),
         }
+
+        if not is_windows:
+            self.converters[('pptx', 'png')] = PptToImageConverter()
+            self.converters[('ppt', 'png')] = PptToImageConverter()
+            self.converters[('pptx', 'jpg')] = PptToImageConverter()
+            self.converters[('ppt', 'jpg')] = PptToImageConverter()
+            self.converters[('pptx', 'jpeg')] = PptToImageConverter()
+            self.converters[('ppt', 'jpeg')] = PptToImageConverter()
+            self.converters[('pptx', 'mp4')] = PptToVideoPptx2mp4Converter()
     
     def convert_file(self, input_path: str, target_format: str, original_filename: str = None, **options) -> Dict[str, Any]:
         """

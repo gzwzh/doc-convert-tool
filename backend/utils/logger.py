@@ -7,7 +7,10 @@ from datetime import datetime
 def setup_logger(name):
     """设置日志记录器，支持打包后的环境"""
     # 确定日志目录
-    if getattr(sys, 'frozen', False):
+    configured_log_dir = os.environ.get("BACKEND_LOG_DIR")
+    if configured_log_dir:
+        log_dir = os.path.abspath(configured_log_dir)
+    elif getattr(sys, 'frozen', False):
         # 打包环境：使用系统临时目录
         log_dir = os.path.join(tempfile.gettempdir(), 'doc-converter', 'logs')
     else:

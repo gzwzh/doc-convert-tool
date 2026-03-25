@@ -5,6 +5,8 @@ import os
 import logging
 import subprocess
 import platform
+import shutil
+from pathlib import Path
 # html2image and PIL imports removed as they are no longer used for browser print method
 # kept reportlab for code mode
 from reportlab.pdfbase import pdfmetrics
@@ -23,16 +25,29 @@ class HtmlToPdfConverter(BaseConverter):
         
     def _get_browser_path(self):
         """获取浏览器路径 (Chrome/Edge)"""
-        if platform.system() != 'Windows':
-            return None
-            
-        # Common browser paths on Windows
-        browser_paths = [
-            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-        ]
+        browser_paths = []
+
+        if platform.system() == 'Windows':
+            browser_paths.extend([
+                r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+                r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+                r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+            ])
+
+        for command_name in [
+            'google-chrome',
+            'google-chrome-stable',
+            'chromium',
+            'chromium-browser',
+            'chrome',
+            'msedge',
+            'microsoft-edge',
+            'microsoft-edge-stable'
+        ]:
+            resolved = shutil.which(command_name)
+            if resolved:
+                browser_paths.append(resolved)
         
         for path in browser_paths:
             if os.path.exists(path):
@@ -63,6 +78,7 @@ class HtmlToPdfConverter(BaseConverter):
                 raise Exception("No supported browser (Chrome/Edge) found.")
                 
             logger.info(f"Using browser: {browser_path}")
+            input_uri = Path(input_path).resolve().as_uri()
             
             # Construct command
             # --headless: Run without UI
@@ -75,8 +91,13 @@ class HtmlToPdfConverter(BaseConverter):
                 '--disable-gpu',
                 '--print-to-pdf=' + output_path,
                 '--no-pdf-header-footer',
-                input_path
+                '--allow-file-access-from-files',
+                input_uri
             ]
+
+            if platform.system() != 'Windows':
+                cmd.insert(1, '--no-sandbox')
+                cmd.insert(2, '--disable-dev-shm-usage')
             
             # Windows specific startup info to hide console window
             startupinfo = None
@@ -186,16 +207,23 @@ class HtmlToPdfConverter(BaseConverter):
         
         self.update_progress(input_path, 20)
         
-        # Register Chinese font
-        try:
-            pdfmetrics.registerFont(TTFont('ChineseFont', r"C:\Windows\Fonts\msyh.ttc", subfontIndex=0))
-            font_name = 'ChineseFont'
-        except:
+        # Register a CJK-capable font when available so containerized Linux builds
+        # can still render Chinese text.
+        font_name = 'Courier'
+        for font_path, kwargs in [
+            (r"C:\Windows\Fonts\msyh.ttc", {'subfontIndex': 0}),
+            (r"C:\Windows\Fonts\simsun.ttc", {'subfontIndex': 0}),
+            ('/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc', {'subfontIndex': 0}),
+            ('/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc', {}),
+            ('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', {}),
+        ]:
             try:
-                pdfmetrics.registerFont(TTFont('ChineseFont', r"C:\Windows\Fonts\simsun.ttc", subfontIndex=0))
-                font_name = 'ChineseFont'
-            except:
-                font_name = 'Courier'  # Fallback
+                if os.path.exists(font_path):
+                    pdfmetrics.registerFont(TTFont('ChineseFont', font_path, **kwargs))
+                    font_name = 'ChineseFont'
+                    break
+            except Exception:
+                continue
         
         # Read HTML source code
         with open(input_path, 'r', encoding='utf-8') as f:

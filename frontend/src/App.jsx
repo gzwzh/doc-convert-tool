@@ -12,12 +12,8 @@ function App() {
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
-    // 检查是否在 Electron 环境中
     if (window.electronAPI) {
-      // 获取初始最大化状态
       window.electronAPI.windowIsMaximized().then(setIsMaximized);
-
-      // 监听窗口最大化状态变化
       window.electronAPI.onWindowMaximized((maximized) => {
         setIsMaximized(maximized);
       });

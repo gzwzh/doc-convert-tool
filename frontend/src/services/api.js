@@ -1,6 +1,21 @@
 // frontend/src/services/api.js
 let cachedApiBaseUrl = null;
-const fallbackBaseUrl = import.meta?.env?.VITE_API_BASE_URL || 'http://127.0.0.1:8002';
+
+const resolveFallbackBaseUrl = () => {
+  const envBaseUrl = import.meta?.env?.VITE_API_BASE_URL;
+  if (envBaseUrl) {
+    return envBaseUrl;
+  }
+
+  const origin = window?.location?.origin;
+  if (origin && /^https?:/i.test(origin)) {
+    return origin;
+  }
+
+  return 'http://127.0.0.1:8002';
+};
+
+const fallbackBaseUrl = resolveFallbackBaseUrl();
 
 const resolveApiBaseUrl = async () => {
   if (cachedApiBaseUrl) {

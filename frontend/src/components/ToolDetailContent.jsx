@@ -7,6 +7,7 @@ import { saveAs } from 'file-saver';
 import { motion } from 'framer-motion';
 import { convertJSON, convertXML, convertGeneral, getApiBaseUrl, batchDownload } from '../services/api';
 import { categories } from '../data';
+import { createSafeTranslator } from '../utils/safeTranslation';
 
 // 文件类型映射表
 const FILE_TYPE_MAP = {
@@ -43,7 +44,9 @@ const FILE_TYPE_MAP = {
 };
 
 function ToolDetailContent({ toolName, onBack }) {
-  const { t } = useTranslation();
+  const { t: rawT, i18n } = useTranslation();
+  const fallbackT = i18n.getFixedT('en');
+  const t = createSafeTranslator(rawT, fallbackT, i18n.language);
   const MotionDiv = motion.div;
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -147,13 +150,16 @@ function ToolDetailContent({ toolName, onBack }) {
   const formatToolDisplayName = useCallback((name) => {
     const parts = name.split(' To ');
     if (parts.length === 2) {
-      return `${parts[0]}${t('toolDetail.to')}${parts[1]}`;
+      return t('toolDetail.breadcrumb_current', {
+        source: parts[0],
+        target: parts[1],
+      });
     }
     return name;
   }, [t]);
 
   const { siblingTools } = useMemo(() => {
-    const majorCategory = categories[t('common.major_functions')] || [];
+    const majorCategory = categories.major_functions || [];
     let section = null;
     for (const s of majorCategory) {
       if (s.tools && s.tools.some((t) => t.name === toolName)) {
@@ -211,16 +217,21 @@ function ToolDetailContent({ toolName, onBack }) {
   };
 
   const handleConverterClick = () => {
-    // Map source format to appropriate route (document types only)
     const formatRoutes = {
+      'DOC': '/tools/docx',
       'DOCX': '/tools/docx',
       'HTML': '/tools/html',
       'JSON': '/tools/json',
       'PDF': '/tools/pdf',
+      'PPT': '/tools/ppt',
+      'PPTX': '/tools/ppt',
       'TXT': '/tools/txt',
-      'XML': '/tools/xml'
+      'XML': '/tools/xml',
+      'XLS': '/tools/excel',
+      'XLSX': '/tools/excel',
+      'EXCEL': '/tools/excel'
     };
-    
+
     const route = formatRoutes[source];
     if (route) {
       console.log(`Navigating to ${route} for source ${source}`);
@@ -229,10 +240,9 @@ function ToolDetailContent({ toolName, onBack }) {
         navigate(route);
       }, 0);
     } else {
-      console.warn(`No route found for source format: ${source}, falling back to main doc page`);
-      // Fallback to main document page if format not found
+      console.warn(`No route found for source format: ${source}, falling back to home page`);
       setTimeout(() => {
-        navigate('/tools/doc');
+        navigate('/');
       }, 0);
     }
   };
@@ -300,7 +310,7 @@ function ToolDetailContent({ toolName, onBack }) {
       setFiles(prev => [...prev, ...fileObjects]);
       
       if (invalidFiles.length === 0) {
-        toast.success(`成功添加 ${validFiles.length} 个文件`);
+        toast.success(t('toolDetail.messages.files_added_success', { count: validFiles.length }));
       }
     }
   };
@@ -316,7 +326,7 @@ function ToolDetailContent({ toolName, onBack }) {
     if (invalidFiles.length > 0) {
       const invalidNames = invalidFiles.map(f => f.name).join(', ');
       toast.error(
-        `只能上传 ${source} 格式的文件 (${allowedExtensions.join(', ')})\n无效文件: ${invalidNames}`,
+        t('toolDetail.messages.invalid_file_type', { format: source, extensions: allowedExtensions.join(', '), names: invalidNames }),
         { duration: 4000 }
       );
     }
@@ -330,7 +340,7 @@ function ToolDetailContent({ toolName, onBack }) {
       setFiles(prev => [...prev, ...fileObjects]);
       
       if (invalidFiles.length === 0) {
-        toast.success(`成功添加 ${validFiles.length} 个文件`);
+        toast.success(t('toolDetail.messages.files_added_success', { count: validFiles.length }));
       }
     }
     
@@ -348,7 +358,7 @@ function ToolDetailContent({ toolName, onBack }) {
     // 显示错误提示
     if (invalidFiles.length > 0) {
       toast.error(
-        `文件夹中有 ${invalidFiles.length} 个文件格式不符合要求，已自动过滤`,
+        t('toolDetail.messages.folder_invalid_filtered', { count: invalidFiles.length }),
         { duration: 4000 }
       );
     }
@@ -360,9 +370,9 @@ function ToolDetailContent({ toolName, onBack }) {
         file
       }));
       setFiles(prev => [...prev, ...fileObjects]);
-      toast.success(`成功添加 ${validFiles.length} 个文件`);
+      toast.success(t('toolDetail.messages.files_added_success', { count: validFiles.length }));
     } else if (selectedFiles.length > 0) {
-      toast.error(`文件夹中没有符合 ${source} 格式的文件`);
+      toast.error(t('toolDetail.messages.folder_no_valid_files', { source }));
     }
     
     // Reset input
@@ -390,7 +400,7 @@ function ToolDetailContent({ toolName, onBack }) {
     e.stopPropagation();
     const hasDownloadableFiles = Object.values(conversionResults).some(res => res && !res.error && res.download_url);
     if (!hasDownloadableFiles) {
-      toast.error('没有可下载的文件');
+      toast.error(t('toolDetail.messages.no_downloadable_files'));
       return;
     }
     setDownloadingFileId(null); // 清空单个文件ID，表示下载全部
@@ -431,7 +441,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 const dirPath = await window.electronAPI.selectDirectory();
                 if (!dirPath) return; // User cancelled
 
-                const toastId = toast.loading('正在保存文件...');
+                const toastId = toast.loading(t('toolDetail.messages.saving_files'));
                 let successCount = 0;
                 let lastError = null;
 
@@ -453,7 +463,7 @@ function ToolDetailContent({ toolName, onBack }) {
                       successCount++;
                     } catch (ipcError) {
                       if (ipcError.message && ipcError.message.includes('No handler registered')) {
-                         throw new Error('应用核心组件已更新，请重启应用以生效');
+                         throw new Error(t('toolDetail.messages.restart_required'));
                       }
                       throw ipcError;
                     }
@@ -461,31 +471,31 @@ function ToolDetailContent({ toolName, onBack }) {
                     console.error('Electron save error:', err);
                     lastError = err;
                     // 如果是需要重启的错误，直接中断循环并抛出，让外层捕获显示
-                    if (err.message === '应用核心组件已更新，请重启应用以生效') {
+                    if (err.message === t('toolDetail.messages.restart_required')) {
                         throw err;
                     }
                   }
                 }
 
                 if (successCount > 0) {
-                  toast.success(`成功保存 ${successCount} 个文件`, { id: toastId });
+                  toast.success(t('toolDetail.messages.save_success', { count: successCount }), { id: toastId });
                 } else {
-                  toast.error(`保存失败: ${lastError ? lastError.message : '未知错误'}`, { id: toastId });
+                  toast.error(t('toolDetail.messages.save_failed', { error: lastError ? lastError.message : t('toolDetail.messages.unknown_error') }), { id: toastId });
                 }
                 return;
 
               } catch (err) {
                  console.error('Electron dialog error:', err);
-                 toast.error('保存操作失败');
+                 toast.error(t('toolDetail.messages.save_operation_failed'));
                  return;
               }
             }
 
             // 2. Web Environment: Try File System Access API
-            if (window.showDirectoryPicker) {
+    if (window.showDirectoryPicker) {
       try {
         const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-        const toastId = toast.loading('正在保存文件...');
+        const toastId = toast.loading(t('toolDetail.messages.saving_files'));
         
         let successCount = 0;
         let lastError = null;
@@ -512,15 +522,15 @@ function ToolDetailContent({ toolName, onBack }) {
         }
         
         if (successCount > 0) {
-            toast.success(`成功保存 ${successCount} 个文件`, { id: toastId });
+            toast.success(t('toolDetail.messages.save_success', { count: successCount }), { id: toastId });
         } else {
-            toast.error(`保存失败: ${lastError ? `${lastError.name}: ${lastError.message}` : '未知错误'}`, { id: toastId });
+            toast.error(t('toolDetail.messages.save_failed', { error: lastError ? `${lastError.name}: ${lastError.message}` : t('toolDetail.messages.unknown_error') }), { id: toastId });
         }
         return;
       } catch (err) {
         if (err.name !== 'AbortError') {
           console.error('Directory picker error:', err);
-          toast.error('无法访问文件夹');
+          toast.error(t('toolDetail.messages.cannot_access_folder'));
         } else {
             return; // User cancelled
         }
@@ -528,7 +538,7 @@ function ToolDetailContent({ toolName, onBack }) {
     }
     
     // Fallback: Trigger downloads with a slight delay
-    toast.success('开始批量下载...');
+    toast.success(t('toolDetail.messages.batch_download_started'));
     downloadableFiles.forEach((res, index) => {
       setTimeout(() => {
         const link = document.createElement('a');
@@ -561,7 +571,7 @@ function ToolDetailContent({ toolName, onBack }) {
     if (downloadableFiles.length === 0) return;
 
     setShowDownloadModal(false);
-    const toastId = toast.loading('正在打包文件...');
+    const toastId = toast.loading(t('toolDetail.messages.packaging_files'));
     
     try {
       // 收集所有文件名
@@ -587,7 +597,7 @@ function ToolDetailContent({ toolName, onBack }) {
             const arrayBuffer = await blob.arrayBuffer();
             const result = await window.electronAPI.saveFile(filePath, arrayBuffer);
             if (result.success) {
-               toast.success('打包下载成功', { id: toastId });
+               toast.success(t('toolDetail.messages.zip_download_success'), { id: toastId });
             } else {
                throw new Error(result.error);
             }
@@ -597,7 +607,7 @@ function ToolDetailContent({ toolName, onBack }) {
           return;
         } catch (err) {
           console.error('Electron zip save error:', err);
-          toast.error('保存失败', { id: toastId });
+          toast.error(t('toolDetail.messages.save_failed', { error: err.message || t('toolDetail.messages.unknown_error') }), { id: toastId });
           return;
         }
       }
@@ -615,7 +625,7 @@ function ToolDetailContent({ toolName, onBack }) {
               const writable = await handle.createWritable();
               await writable.write(blob);
               await writable.close();
-              toast.success('打包下载成功', { id: toastId });
+              toast.success(t('toolDetail.messages.zip_download_success'), { id: toastId });
               return;
           } catch (err) {
               if (err.name === 'AbortError') {
@@ -629,10 +639,10 @@ function ToolDetailContent({ toolName, onBack }) {
 
       saveAs(blob, filename);
       
-      toast.success('打包下载成功', { id: toastId });
+      toast.success(t('toolDetail.messages.zip_download_success'), { id: toastId });
     } catch (error) {
       console.error('Zip download error:', error);
-      toast.error('打包下载失败', { id: toastId });
+      toast.error(t('toolDetail.messages.zip_download_failed'), { id: toastId });
     }
   };
 
@@ -671,25 +681,25 @@ function ToolDetailContent({ toolName, onBack }) {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       setIsConverting(false);
-      toast.error('转换已取消');
+      toast.error(t('toolDetail.messages.conversion_cancelled'));
     }
-  }, []);
+  }, [t]);
 
   const handleConvert = async () => {
     if (files.length === 0) return;
 
     // Validation
     // PDF/DOCX Page Range
-    if (source === 'PDF' && convertOptions.pdfPageSelection !== '所有页面') {
+    if (source === 'PDF' && convertOptions.pdfPageSelection !== t('toolDetail.options.all_pages')) {
       if (!validatePageRange(convertOptions.pdfCustomRange)) {
-        toast.error('PDF 页码范围格式不正确。请使用如 "1-5" 或 "1,3,5" 的格式。');
+        toast.error(t('toolDetail.messages.pdf_page_range_invalid'));
         return;
       }
     }
 
     if (source === 'DOCX' && target === 'PDF' && convertOptions.docxPdfPageRange) {
       if (!validatePageRange(convertOptions.docxPdfPageRange)) {
-        toast.error('DOCX 页码范围格式不正确。请使用如 "1-5" 或 "1,3,5" 的格式。');
+        toast.error(t('toolDetail.messages.docx_page_range_invalid'));
         return;
       }
     }
@@ -698,20 +708,20 @@ function ToolDetailContent({ toolName, onBack }) {
     if (target === 'GIF') {
       const delay = parseInt(convertOptions.animationDelay);
       if (isNaN(delay) || delay < 10 || delay > 5000) {
-        toast.error('动画延迟必须在 10 到 5000 毫秒之间');
+        toast.error(t('toolDetail.messages.animation_delay_invalid'));
         return;
       }
     }
 
     // Background Color (Global check if present in current options)
     if (convertOptions.backgroundColor && !validateHexColor(convertOptions.backgroundColor)) {
-      toast.error('背景颜色格式不正确。请使用十六进制颜色码，如 #FFFFFF');
+      toast.error(t('toolDetail.messages.background_color_invalid'));
       return;
     }
 
     // Watermark Color
     if (isWatermarkExpanded && watermarkOptions.color && !validateHexColor(watermarkOptions.color)) {
-      toast.error('水印颜色格式不正确。请使用十六进制颜色码，如 #CCCCCC');
+      toast.error(t('toolDetail.messages.watermark_color_invalid'));
       return;
     }
 
@@ -726,7 +736,7 @@ function ToolDetailContent({ toolName, onBack }) {
     // 检查是否是PPT转视频，给出特殊提示
     const isPptToVideo = (source === 'PPT' || source === 'PPTX') && target === 'Video';
     if (isPptToVideo && files.length > 0) {
-      toast('PPT转视频需要2-5分钟，请耐心等待...', { 
+      toast(t('toolDetail.messages.ppt_video_wait'), { 
         duration: 4000,
         icon: '⏱️'
       });
@@ -734,13 +744,13 @@ function ToolDetailContent({ toolName, onBack }) {
     
     let successCount = 0;
     let failureCount = 0;
-    const toastId = toast.loading(isPptToVideo ? '正在转换视频，请耐心等待...' : '正在处理文件...');
+    const toastId = toast.loading(isPptToVideo ? t('toolDetail.messages.converting_video_wait') : t('toolDetail.messages.processing_files'));
 
     try {
       // Loop through all files
       for (let i = 0; i < files.length; i++) {
         if (signal.aborted) {
-          throw new Error('操作已取消');
+          throw new Error(t('toolDetail.messages.operation_cancelled'));
         }
 
         const fileObj = files[i];
@@ -860,7 +870,7 @@ function ToolDetailContent({ toolName, onBack }) {
             if (source === 'PDF') {
               options.quality = convertOptions.quality;
               options.pdf_page_selection = convertOptions.pdfPageSelection;
-              if (convertOptions.pdfPageSelection !== '所有页面') {
+              if (convertOptions.pdfPageSelection !== t('toolDetail.options.all_pages')) {
                 options.pdf_page_range = convertOptions.pdfCustomRange;
               }
               // 图片输出选项
@@ -989,13 +999,13 @@ function ToolDetailContent({ toolName, onBack }) {
             result = await convertGeneral(file, targetFormat, options);
           } else {
             await new Promise(resolve => setTimeout(resolve, 500));
-            throw new Error('该转换类型暂未实现');
+            throw new Error(t('toolDetail.messages.not_implemented'));
           }
           
           setConversionResults(prev => ({ ...prev, [fileObj.id]: result }));
           successCount++;
         } catch (err) {
-          if (err.name === 'AbortError' || err.message === '操作已取消') {
+          if (err.name === 'AbortError' || err.message === t('toolDetail.messages.operation_cancelled')) {
              throw err; // Re-throw cancellation to stop outer loop
           }
           console.error(`Error converting file ${file.name}:`, err);
@@ -1012,18 +1022,18 @@ function ToolDetailContent({ toolName, onBack }) {
       }
       
       if (failureCount === 0) {
-        toast.success(`成功转换 ${successCount} 个文件`, { id: toastId });
+        toast.success(t('toolDetail.messages.conversion_success', { count: successCount }), { id: toastId });
       } else {
-        toast.error(`转换完成: ${successCount} 个成功, ${failureCount} 个失败`, { id: toastId });
+        toast.error(t('toolDetail.messages.conversion_completed_mixed', { success: successCount, failed: failureCount }), { id: toastId });
       }
     } catch (err) {
-      if (err.name === 'AbortError' || err.message === '操作已取消') {
+      if (err.name === 'AbortError' || err.message === t('toolDetail.messages.operation_cancelled')) {
         console.log('Conversion cancelled');
         toast.dismiss(toastId);
         // 不显示错误，因为是用户取消
       } else {
         console.error(err);
-        toast.error(`转换过程出错: ${err.message}`, { id: toastId });
+        toast.error(t('toolDetail.messages.conversion_process_error', { error: err.message }), { id: toastId });
       }
     } finally {
       setIsConverting(false);
@@ -1037,10 +1047,9 @@ function ToolDetailContent({ toolName, onBack }) {
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      style={{ padding: '24px', height: '100%', overflowY: 'auto' }}
     >
       <div className="detail-header">
-        <button className="back-button-circle" onClick={handleHomeClick} style={{ marginRight: '24px' }}>
+        <button className="back-button-circle detail-back-button" onClick={handleHomeClick}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5"/>
             <path d="M12 19l-7-7 7-7"/>
@@ -1053,16 +1062,18 @@ function ToolDetailContent({ toolName, onBack }) {
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                 <polyline points="9 22 9 12 15 12 15 22" />
               </svg>
-              首页
+              {t('toolDetail.breadcrumb_home')}
             </span>
             <span className="breadcrumb-separator">/</span>
-            <span className="breadcrumb-item" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConverterClick(); }}>{source} 工具</span>
+            <span className="breadcrumb-item" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConverterClick(); }}>
+              {t('toolDetail.breadcrumb_tools', { source })}
+            </span>
             <span className="breadcrumb-separator">/</span>
             <span
               className={`breadcrumb-item active breadcrumb-item-dropdown ${isToolDropdownOpen ? 'open' : ''}`}
               onClick={handleToolBreadcrumbToggle}
             >
-              <span>{source}转为{target}</span>
+              <span>{t('toolDetail.breadcrumb_current', { source, target })}</span>
               {siblingTools.length > 0 && (
                 <svg
                   className="breadcrumb-caret"
@@ -1096,7 +1107,7 @@ function ToolDetailContent({ toolName, onBack }) {
           </div>
           
           <div className="detail-title-section">
-            <h1 className="detail-title">{source}转{target}转换器</h1>
+            <h1 className="detail-title">{t('toolDetail.title', { source, target })}</h1>
             <p className="detail-desc">
               {t('toolDetail.description', { source, target })}
             </p>
@@ -1493,12 +1504,12 @@ function ToolDetailContent({ toolName, onBack }) {
                           <circle cx="8.5" cy="8.5" r="1.5"/>
                           <polyline points="21 15 16 10 5 21"/>
                         </svg>
-                        <span>图片质量</span>
+                        <span>{t('toolDetail.options.image_quality')}</span>
                       </div>
                     </div>
                     <div className="option-group-content">
                       <div className="sub-option">
-                        <label>质量 (1-100)</label>
+                        <label>{t('toolDetail.options.quality_range')}</label>
                         <input 
                           type="range" 
                           min="1" 
@@ -1591,7 +1602,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'PDF' && (
                   <>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label className="custom-theme-label">页面大小</label>
+                      <label className="custom-theme-label">{t('toolDetail.options.page_size')}</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
                           value={convertOptions.pageSize}
@@ -1616,15 +1627,15 @@ function ToolDetailContent({ toolName, onBack }) {
                     </div>
 
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label className="custom-theme-label">方向</label>
+                      <label className="custom-theme-label">{t('toolDetail.options.orientation')}</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
                           value={convertOptions.orientation}
                           onChange={(e) => setConvertOptions({...convertOptions, orientation: e.target.value})}
                           className="custom-theme-select"
                         >
-                          <option>纵向</option>
-                          <option>横向</option>
+                          <option>{t('toolDetail.options.portrait')}</option>
+                          <option>{t('toolDetail.options.landscape')}</option>
                         </select>
                         <svg 
                           width="12" 
@@ -1643,7 +1654,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {['JPG', 'PNG'].includes(target) && (
                   <>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>质量 (1-100)</label>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>{t('toolDetail.options.quality_range')}</label>
                       <input 
                         type="range" 
                         min="1" 
@@ -1658,7 +1669,7 @@ function ToolDetailContent({ toolName, onBack }) {
                     </div>
 
                     <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
-                      <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                      <label style={{ minWidth: '60px', marginBottom: 0 }}>{t('toolDetail.options.background_color')}</label>
                       <input 
                         type="color" 
                         value={convertOptions.backgroundColor}
@@ -1681,17 +1692,17 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'CSV' && (
                   <div className="option-group-content" style={{ padding: '20px' }}>
                     <div className="sub-option">
-                      <label className="custom-theme-label">CSV 分隔符</label>
+                      <label className="custom-theme-label">{t('toolDetail.options.csv_delimiter')}</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
                           value={convertOptions.csvDelimiter}
                           onChange={(e) => setConvertOptions({...convertOptions, csvDelimiter: e.target.value})}
                           className="custom-theme-select"
                         >
-                          <option>逗号 (,)</option>
-                          <option>分号 (;)</option>
-                          <option>制表符 (Tab)</option>
-                          <option>竖线 (|)</option>
+                          <option>{t('toolDetail.options.comma')}</option>
+                          <option>{t('toolDetail.options.semicolon')}</option>
+                          <option>{t('toolDetail.options.tab')}</option>
+                          <option>{t('toolDetail.options.pipe')}</option>
                         </select>
                         <svg 
                           width="12" 
@@ -1710,7 +1721,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'JPG' && (
                   <div className="option-group-content static-options" style={{ padding: '20px' }}>
                     <div className="sub-option">
-                      <label>图片质量</label>
+                      <label>{t('toolDetail.options.image_quality')}</label>
                       <input 
                         type="range" 
                         min="1" 
@@ -1724,7 +1735,7 @@ function ToolDetailContent({ toolName, onBack }) {
                     </div>
                     
                     <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
-                      <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                      <label style={{ minWidth: '60px', marginBottom: 0 }}>{t('toolDetail.options.background_color')}</label>
                       <input 
                         type="color" 
                         value={convertOptions.backgroundColor}
@@ -1745,7 +1756,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'YAML' && (
                   <div className="option-group-content static-options" style={{ padding: '20px' }}>
                     <div className="sub-option">
-                      <label>YAML 缩进</label>
+                      <label>{t('toolDetail.options.yaml_indent')}</label>
                       <input 
                         type="range" 
                         min="1" 
@@ -1767,7 +1778,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {['JPG', 'PNG', 'JPEG', 'Image'].includes(target) && (
                   <>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>质量 (1-100)</label>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>{t('toolDetail.options.quality_range')}</label>
                       <input 
                         type="range" 
                         min="1" 
@@ -1782,7 +1793,7 @@ function ToolDetailContent({ toolName, onBack }) {
                     </div>
 
                     <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
-                      <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                      <label style={{ minWidth: '60px', marginBottom: 0 }}>{t('toolDetail.options.background_color')}</label>
                       <input 
                         type="color" 
                         value={convertOptions.backgroundColor}
@@ -1805,7 +1816,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'PDF' && (
                   <>
                     <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px', marginTop: '10px' }}>
-                      <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                      <label style={{ minWidth: '60px', marginBottom: 0 }}>{t('toolDetail.options.background_color')}</label>
                       <input 
                         type="color" 
                         value={convertOptions.backgroundColor}
@@ -1821,7 +1832,7 @@ function ToolDetailContent({ toolName, onBack }) {
                       />
                     </div>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label className="custom-theme-label">页面大小</label>
+                      <label className="custom-theme-label">{t('toolDetail.options.page_size')}</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select 
                           value={convertOptions.pageSize}
@@ -1849,7 +1860,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {target === 'JPG' && (
                   <>
                     <div className="sub-option" style={{ marginTop: '20px' }}>
-                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>质量 (1-100)</label>
+                      <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>{t('toolDetail.options.quality_range')}</label>
                       <input 
                         type="range" 
                         min="1" 
@@ -1863,7 +1874,7 @@ function ToolDetailContent({ toolName, onBack }) {
                       </div>
                     </div>
                     <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
-                      <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                      <label style={{ minWidth: '60px', marginBottom: 0 }}>{t('toolDetail.options.background_color')}</label>
                       <input 
                         type="color" 
                         value={convertOptions.backgroundColor}
@@ -1882,17 +1893,17 @@ function ToolDetailContent({ toolName, onBack }) {
                 )}
                 {target === 'CSV' && (
                   <div className="sub-option" style={{ marginTop: '20px' }}>
-                    <label className="custom-theme-label">CSV 分隔符</label>
+                    <label className="custom-theme-label">{t('toolDetail.options.csv_delimiter')}</label>
                     <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                       <select 
                         value={convertOptions.csvDelimiter}
                         onChange={(e) => setConvertOptions({...convertOptions, csvDelimiter: e.target.value})}
                         className="custom-theme-select"
                       >
-                        <option>逗号 (,)</option>
-                        <option>分号 (;)</option>
-                        <option>制表符 (Tab)</option>
-                        <option>竖线 (|)</option>
+                        <option>{t('toolDetail.options.comma')}</option>
+                        <option>{t('toolDetail.options.semicolon')}</option>
+                        <option>{t('toolDetail.options.tab')}</option>
+                        <option>{t('toolDetail.options.pipe')}</option>
                       </select>
                       <svg 
                         width="12" 
@@ -1908,7 +1919,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 )}
                 {target === 'YAML' && (
                   <div className="sub-option" style={{ marginTop: '20px' }}>
-                    <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>YAML 缩进</label>
+                    <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>{t('toolDetail.options.yaml_indent')}</label>
                     <input 
                       type="range" 
                       min="1" 
@@ -1925,7 +1936,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 )}
                 {target === 'JSON' && (
                   <div className="sub-option" style={{ marginTop: '20px' }}>
-                    <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>JSON 缩进</label>
+                    <label style={{ color: '#334155', fontWeight: '500', marginBottom: '12px', display: 'block', fontSize: '15px' }}>{t('toolDetail.options.json_indent')}</label>
                     <input 
                       type="range" 
                       min="1" 
@@ -1946,17 +1957,17 @@ function ToolDetailContent({ toolName, onBack }) {
                 {source === 'DOCX' && target === 'PDF' && (
                   <div className="option-group-content static-options">
                     <div className="sub-option">
-                      <label>页面范围</label>
+                      <label>{t('toolDetail.options.page_range')}</label>
                       <input
                         type="text"
                         value={convertOptions.docxPdfPageRange}
                         onChange={(e) => setConvertOptions({...convertOptions, docxPdfPageRange: e.target.value})}
-                        placeholder="例如: 1-5,8,10"
+                        placeholder={t('toolDetail.options.docx_page_range_placeholder')}
                         style={{ width: '100%', fontFamily: 'monospace' }}
                       />
                     </div>
                     <div className="sub-option" style={{ marginTop: '16px' }}>
-                      <label className="custom-theme-label">页面大小</label>
+                      <label className="custom-theme-label">{t('toolDetail.options.page_size')}</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select
                           value={convertOptions.pageSize}
@@ -1980,15 +1991,15 @@ function ToolDetailContent({ toolName, onBack }) {
                       </div>
                     </div>
                     <div className="sub-option" style={{ marginTop: '16px' }}>
-                      <label className="custom-theme-label">方向</label>
+                      <label className="custom-theme-label">{t('toolDetail.options.orientation')}</label>
                       <div className="custom-select-wrapper" style={{ position: 'relative' }}>
                         <select
                           value={convertOptions.orientation}
                           onChange={(e) => setConvertOptions({...convertOptions, orientation: e.target.value})}
                           className="custom-theme-select"
                         >
-                          <option>纵向</option>
-                          <option>横向</option>
+                          <option>{t('toolDetail.options.portrait')}</option>
+                          <option>{t('toolDetail.options.landscape')}</option>
                         </select>
                         <svg
                           width="12"
@@ -2007,7 +2018,7 @@ function ToolDetailContent({ toolName, onBack }) {
                 {!['TXT', 'EPUB'].includes(target) && ['PNG', 'JPG', 'JPEG', 'GIF', 'WEBP', 'SVG'].includes(target) && (
                   <div className="option-group-content static-options">
                     <div className="sub-option">
-                      <label>质量 (1-100)</label>
+                      <label>{t('toolDetail.options.quality_range')}</label>
                       <input 
                         type="range" 
                         min="1" 
@@ -2019,7 +2030,7 @@ function ToolDetailContent({ toolName, onBack }) {
                     </div>
                     
                     <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
-                      <label style={{ minWidth: '60px', marginBottom: 0 }}>背景颜色</label>
+                      <label style={{ minWidth: '60px', marginBottom: 0 }}>{t('toolDetail.options.background_color')}</label>
                       <input 
                         type="color" 
                         value={convertOptions.backgroundColor}
@@ -2042,7 +2053,7 @@ function ToolDetailContent({ toolName, onBack }) {
                     className="option-group-header" 
                     onClick={() => setIsWatermarkExpanded(!isWatermarkExpanded)}
                   >
-                    <span>水印信息</span>
+                    <span>{t('toolDetail.options.watermark_info')}</span>
                     <svg 
                       width="16" 
                       height="16" 
@@ -2061,7 +2072,7 @@ function ToolDetailContent({ toolName, onBack }) {
                       {!['TXT', 'EPUB'].includes(target) && (
                         <>
                           <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
-                            <label style={{ minWidth: 'auto', marginBottom: 0 }}>文字</label>
+                            <label style={{ minWidth: 'auto', marginBottom: 0 }}>{t('toolDetail.options.watermark_text')}</label>
                             <input 
                               type="text" 
                               placeholder=""
@@ -2072,7 +2083,7 @@ function ToolDetailContent({ toolName, onBack }) {
                           </div>
                           
                           <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
-                            <label style={{ minWidth: '60px', marginBottom: 0 }}>大小</label>
+                            <label style={{ minWidth: '60px', marginBottom: 0 }}>{t('toolDetail.options.watermark_size')}</label>
                             <input 
                               type="range" 
                               min="10" 
@@ -2085,7 +2096,7 @@ function ToolDetailContent({ toolName, onBack }) {
                           </div>
                           
                           <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
-                            <label style={{ minWidth: '60px', marginBottom: 0 }}>不透明度</label>
+                            <label style={{ minWidth: '60px', marginBottom: 0 }}>{t('toolDetail.options.watermark_opacity')}</label>
                             <input 
                               type="range" 
                               min="0" 
@@ -2098,7 +2109,7 @@ function ToolDetailContent({ toolName, onBack }) {
                           </div>
                           
                           <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
-                            <label style={{ minWidth: '60px', marginBottom: 0 }}>角度</label>
+                            <label style={{ minWidth: '60px', marginBottom: 0 }}>{t('toolDetail.options.watermark_angle')}</label>
                             <input 
                               type="range" 
                               min="0" 
@@ -2111,7 +2122,7 @@ function ToolDetailContent({ toolName, onBack }) {
                           </div>
                           
                           <div className="sub-option" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
-                            <label style={{ minWidth: '60px', marginBottom: 0 }}>颜色</label>
+                            <label style={{ minWidth: '60px', marginBottom: 0 }}>{t('toolDetail.options.watermark_color')}</label>
                             <input 
                               type="color" 
                               value={watermarkOptions.color}
@@ -2130,7 +2141,7 @@ function ToolDetailContent({ toolName, onBack }) {
                       )}
                       
                       <div className="sub-option">
-                        <label>位置</label>
+                        <label>{t('toolDetail.options.watermark_position')}</label>
                         <div className="position-grid">
                           {[
                             { pos: 'top-left', icon: <path d="M7 17l10-10M7 7h10v10" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }} /> },
@@ -2166,16 +2177,16 @@ function ToolDetailContent({ toolName, onBack }) {
 
       <div className="file-list-container">
         <div className="file-list-header">
-          <h3 className="file-list-title">文件列表 ({files.length})</h3>
+          <h3 className="file-list-title">{t('toolDetail.file_list')} ({files.length})</h3>
           <div className="file-list-actions">
-            <button className="file-action-btn" onClick={() => {}} disabled={files.length === 0}>全选</button>
-            <button className="file-action-btn" onClick={() => {}} disabled={files.length === 0}>取消全选</button>
+            <button className="file-action-btn" onClick={() => {}} disabled={files.length === 0}>{t('toolDetail.select_all')}</button>
+            <button className="file-action-btn" onClick={() => {}} disabled={files.length === 0}>{t('toolDetail.deselect_all')}</button>
             {isConverting ? (
               <button 
                 className="file-action-btn file-action-btn-danger"
                 onClick={handleCancelConversion}
               >
-                取消转换
+                {t('toolDetail.cancel_conversion')}
               </button>
             ) : (
               <button 
@@ -2183,18 +2194,18 @@ function ToolDetailContent({ toolName, onBack }) {
                 onClick={handleConvert}
                 disabled={files.length === 0}
               >
-                全部转换
+                {t('toolDetail.start_conversion')}
               </button>
             )}
-            <button className="file-action-btn" onClick={handleClearAll} disabled={files.length === 0 || isConverting}>清空全部</button>
-            <button className="file-action-btn" disabled={files.length === 0 || isConverting} onClick={handleDownloadAll}>全部下载</button>
+            <button className="file-action-btn" onClick={handleClearAll} disabled={files.length === 0 || isConverting}>{t('toolDetail.clear_all')}</button>
+            <button className="file-action-btn" disabled={files.length === 0 || isConverting} onClick={handleDownloadAll}>{t('toolDetail.download_all')}</button>
           </div>
         </div>
         
         {isConverting && (
           <div className="progress-bar-container">
             <div className="progress-info">
-              <span>正在处理: {progress.current} / {progress.total}</span>
+              <span>{t('toolDetail.progress_processing', { current: progress.current, total: progress.total })}</span>
               <span>{progress.percent}%</span>
             </div>
             <div className="progress-track">
@@ -2227,21 +2238,21 @@ function ToolDetailContent({ toolName, onBack }) {
                       <button
                         onClick={(e) => handleSingleFileDownload(e, fileObj.id)}
                         className="status-btn finish"
-                        title="下载文件"
+                        title={t('toolDetail.download_file')}
                       >
-                        下载
+                        {t('toolDetail.download')}
                       </button>
                     )}
                     {conversionResults[fileObj.id] && conversionResults[fileObj.id].error && (
-                      <span className="status-btn error">错误</span>
+                      <span className="status-btn error">{t('toolDetail.error')}</span>
                     )}
                     {!conversionResults[fileObj.id] && isConverting && (
-                      <span className="status-btn converting">转换中...</span>
+                      <span className="status-btn converting">{t('toolDetail.status_converting')}</span>
                     )}
                     <button 
                       onClick={() => handleRemoveFile(fileObj.id)}
                       className="btn-delete"
-                      title="删除"
+                      title={t('toolDetail.delete')}
                     >
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <line x1="18" y1="6" x2="6" y2="18"/>
@@ -2254,7 +2265,7 @@ function ToolDetailContent({ toolName, onBack }) {
             </div>
           ) : (
             <div className="file-list-empty">
-              <p>暂无文件，请在上方添加</p>
+              <p>{t('toolDetail.no_files')}</p>
             </div>
           )}
         </div>
@@ -2265,7 +2276,7 @@ function ToolDetailContent({ toolName, onBack }) {
         <div className="modal-overlay" onClick={() => setShowDownloadModal(false)}>
           <div className="download-modal" onClick={e => e.stopPropagation()}>
             <div className="download-modal-header">
-              <h3>全部下载</h3>
+              <h3>{t('toolDetail.download_all')}</h3>
               <button className="modal-close-btn" onClick={() => setShowDownloadModal(false)}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -2283,8 +2294,8 @@ function ToolDetailContent({ toolName, onBack }) {
                   </svg>
                 </div>
                 <div className="download-option-text">
-                  <h4>打包下载 (ZIP)</h4>
-                  <p>将所有文件打包成一个 ZIP 文件下载</p>
+                  <h4>{t('toolDetail.zip_download_title')}</h4>
+                  <p>{t('toolDetail.zip_download_desc')}</p>
                 </div>
               </button>
               
@@ -2295,8 +2306,8 @@ function ToolDetailContent({ toolName, onBack }) {
                   </svg>
                 </div>
                 <div className="download-option-text">
-                  <h4>下载到文件夹</h4>
-                  <p>选择文件夹,将所有文件保存到该位置</p>
+                  <h4>{t('toolDetail.download_to_folder_title')}</h4>
+                  <p>{t('toolDetail.select_folder')}</p>
                 </div>
               </button>
             </div>
@@ -2308,7 +2319,7 @@ function ToolDetailContent({ toolName, onBack }) {
         <div className="modal-overlay" onClick={() => setShowPreviewModal(false)}>
           <div className="preview-modal" onClick={e => e.stopPropagation()}>
             <div className="preview-modal-header">
-              <h3>HTML 预览</h3>
+              <h3>{t('toolDetail.html_preview')}</h3>
               <button className="preview-close-btn" onClick={() => setShowPreviewModal(false)}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -2319,7 +2330,7 @@ function ToolDetailContent({ toolName, onBack }) {
             <div className="preview-modal-content">
               <iframe 
                 srcDoc={previewContent} 
-                title="HTML Preview"
+                title={t('toolDetail.html_preview')}
                 style={{ width: '100%', height: '100%', border: 'none', backgroundColor: '#fff' }}
                 sandbox="allow-scripts"
               />
