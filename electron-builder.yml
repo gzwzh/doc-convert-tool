@@ -72,3 +72,16 @@ linux:
       arch:
         - x64
   artifactName: linux/${productName}-${version}-${arch}.${ext}
+mac:
+  category: public.app-category.utilities
+  icon: build/icons
+  target:
+    - target: zip
+      arch:
+        - x64
+    - target: dmg
+      arch:
+        - x64
+  artifactName: mac/${productName}-${version}-${arch}.${ext}
+dmg:
+  artifactName: mac/${productName}-${version}-${arch}.${ext}
