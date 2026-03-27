@@ -94,3 +94,6 @@ verify_fix_log.txt
 
 # Local test assets
 test/
+
+# Local bundled LibreOffice runtime
+resources/libreoffice-linux/
