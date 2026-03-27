@@ -79,9 +79,4 @@ mac:
     - target: zip
       arch:
         - x64
-    - target: dmg
-      arch:
-        - x64
-  artifactName: mac/${productName}-${version}-${arch}.${ext}
-dmg:
   artifactName: mac/${productName}-${version}-${arch}.${ext}

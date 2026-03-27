@@ -55,7 +55,7 @@ jobs:
           DEBUG: electron-builder
         run: |
           node -e "const fs = require('fs'); const pkg = require('./package.json'); fs.mkdirSync('release/' + pkg.version + '/mac', { recursive: true })"
-          npx electron-builder --mac zip dmg
+          npx electron-builder --mac zip
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
@@ -63,5 +63,4 @@ jobs:
           name: macos-build
           path: |
             release/*/mac/*.zip
-            release/*/mac/*.dmg
           if-no-files-found: error
