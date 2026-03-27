@@ -74,7 +74,7 @@ linux:
   artifactName: linux/${productName}-${version}-${arch}.${ext}
 mac:
   category: public.app-category.utilities
-  icon: build/icons
+  icon: build/icons/app.icns
   target:
     - target: zip
       arch:
