@@ -41,8 +41,31 @@ def get_bundled_libreoffice_path() -> Optional[str]:
       └── libreoffice/
           └── program/soffice.exe
     """
-    executable_name = 'soffice.exe' if sys.platform == 'win32' else 'soffice'
-    dev_resource_dir = 'libreoffice' if sys.platform == 'win32' else 'libreoffice-linux'
+    if sys.platform == 'win32':
+        executable_name = 'soffice.exe'
+        frozen_candidates = [
+            os.path.join('libreoffice', 'program', executable_name),
+        ]
+        dev_candidates = [
+            os.path.join('resources', 'libreoffice', 'program', executable_name),
+        ]
+    elif sys.platform == 'darwin':
+        executable_name = 'soffice'
+        frozen_candidates = [
+            os.path.join('libreoffice', 'LibreOffice.app', 'Contents', 'MacOS', executable_name),
+        ]
+        dev_candidates = [
+            os.path.join('resources', 'libreoffice-mac', 'LibreOffice.app', 'Contents', 'MacOS', executable_name),
+            os.path.join('resources', 'libreoffice', 'LibreOffice.app', 'Contents', 'MacOS', executable_name),
+        ]
+    else:
+        executable_name = 'soffice'
+        frozen_candidates = [
+            os.path.join('libreoffice', 'program', executable_name),
+        ]
+        dev_candidates = [
+            os.path.join('resources', 'libreoffice-linux', 'program', executable_name),
+        ]
 
     if is_frozen():
         # 打包环境: 从exe所在目录向上找到resources，再找libreoffice
@@ -50,15 +73,17 @@ def get_bundled_libreoffice_path() -> Optional[str]:
         base_path = get_app_base_path()
         # 向上跳两级到达 resources 目录
         resources_path = os.path.dirname(os.path.dirname(base_path))
-        libreoffice_path = os.path.join(resources_path, 'libreoffice', 'program', executable_name)
-        if os.path.exists(libreoffice_path):
-            return libreoffice_path
+        for candidate in frozen_candidates:
+            libreoffice_path = os.path.join(resources_path, candidate)
+            if os.path.exists(libreoffice_path):
+                return libreoffice_path
     else:
         # 开发环境: get_app_base_path() 已经是项目根目录
         project_root = get_app_base_path()
-        libreoffice_path = os.path.join(project_root, 'resources', dev_resource_dir, 'program', executable_name)
-        if os.path.exists(libreoffice_path):
-            return libreoffice_path
+        for candidate in dev_candidates:
+            libreoffice_path = os.path.join(project_root, candidate)
+            if os.path.exists(libreoffice_path):
+                return libreoffice_path
     
     return None
 

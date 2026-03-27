@@ -11,7 +11,6 @@ extraResources:
     to: backend/dist
   - version.txt
   - update_config.json
-  - updater.exe
 files:
   - from: .
     filter:
@@ -35,6 +34,7 @@ files:
 win:
   icon: frontend/public/app.ico
   extraResources:
+    - updater.exe
     - from: resources/libreoffice
       to: libreoffice
   target:
@@ -74,6 +74,9 @@ linux:
   artifactName: linux/${productName}-${version}-${arch}.${ext}
 mac:
   category: public.app-category.utilities
+  extraResources:
+    - from: resources/libreoffice-mac
+      to: libreoffice
   target:
     - target: zip
       arch:

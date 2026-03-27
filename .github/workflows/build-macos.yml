@@ -32,6 +32,14 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install bundled macOS dependencies
+        run: |
+          brew install --cask libreoffice
+          rm -rf resources/libreoffice-mac
+          mkdir -p resources/libreoffice-mac
+          cp -R /Applications/LibreOffice.app resources/libreoffice-mac/LibreOffice.app
+          du -sh resources/libreoffice-mac/LibreOffice.app
+
       - name: Install root dependencies
         run: npm install
 
@@ -56,6 +64,13 @@ jobs:
         run: |
           node -e "const fs = require('fs'); const pkg = require('./package.json'); fs.mkdirSync('release/' + pkg.version + '/mac', { recursive: true })"
           npx electron-builder --mac dir
+
+      - name: Verify bundled resources
+        run: |
+          APP_PATH=$(find release -type d -name "*.app" | head -n 1)
+          test -n "$APP_PATH"
+          test -d "$APP_PATH/Contents/Resources/libreoffice/LibreOffice.app"
+          du -sh "$APP_PATH/Contents/Resources/libreoffice/LibreOffice.app"
 
       - name: Archive macOS app bundle
         run: |
