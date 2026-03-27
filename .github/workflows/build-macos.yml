@@ -35,8 +35,27 @@ jobs:
       - name: Install root dependencies
         run: npm install
 
+      - name: Build frontend
+        run: npm run build:frontend
+
+      - name: Install backend Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r backend/requirements.txt
+          python3 -m pip install pyinstaller
+
+      - name: Build backend executable
+        run: python3 -m PyInstaller --noconfirm --clean --name backend-server --distpath backend/dist --workpath backend/build backend/main.py
+
+      - name: Verify backend output
+        run: ls -R backend/dist
+
       - name: Build macOS package
-        run: npm run build:mac
+        env:
+          DEBUG: electron-builder
+        run: |
+          node -e "const fs = require('fs'); const pkg = require('./package.json'); fs.mkdirSync('release/' + pkg.version + '/mac', { recursive: true })"
+          npx electron-builder --mac zip dmg
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
