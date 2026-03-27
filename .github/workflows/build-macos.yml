@@ -59,9 +59,10 @@ jobs:
 
       - name: Archive macOS app bundle
         run: |
+          VERSION=$(node -p "require('./package.json').version")
           APP_PATH=$(find release -type d -name "*.app" | head -n 1)
           test -n "$APP_PATH"
-          ZIP_PATH="${APP_PATH}.zip"
+          ZIP_PATH="release/${VERSION}/mac/doc-convert-tool-mac.zip"
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
           echo "Created $ZIP_PATH"
 
