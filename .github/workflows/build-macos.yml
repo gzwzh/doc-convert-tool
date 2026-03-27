@@ -71,7 +71,15 @@ jobs:
           DEBUG: electron-builder
         run: |
           node -e "const fs = require('fs'); const pkg = require('./package.json'); fs.mkdirSync('release/' + pkg.version + '/mac', { recursive: true })"
-          npx electron-builder --mac zip
+          npx electron-builder --mac dir
+
+      - name: Archive macOS app bundle
+        run: |
+          APP_PATH=$(find release -type d -name "*.app" | head -n 1)
+          test -n "$APP_PATH"
+          ZIP_PATH="${APP_PATH}.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
+          echo "Created $ZIP_PATH"
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
