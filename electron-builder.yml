@@ -9,8 +9,6 @@ directories:
 extraResources:
   - from: backend/dist
     to: backend/dist
-  - from: resources/libreoffice
-    to: libreoffice
   - version.txt
   - update_config.json
   - updater.exe
@@ -36,6 +34,9 @@ files:
   - "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
 win:
   icon: frontend/public/app.ico
+  extraResources:
+    - from: resources/libreoffice
+      to: libreoffice
   target:
     - target: nsis
       arch:
@@ -60,6 +61,9 @@ linux:
   category: Utility
   executableName: doc-convert-tool
   icon: build/icons
+  extraResources:
+    - from: resources/libreoffice-linux
+      to: libreoffice
   target:
     - target: AppImage
       arch:

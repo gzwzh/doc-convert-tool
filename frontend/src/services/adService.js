@@ -1,0 +1,32 @@
+import axios from 'axios';
+
+const API_BASE_URL = 'https://api-web.kunqiongai.com';
+const SOFT_NUMBER = '10031';
+
+export const AdService = {
+  async fetchAd(position) {
+    try {
+      const params = new URLSearchParams();
+      params.append('soft_number', SOFT_NUMBER);
+      params.append('adv_position', position);
+
+      const response = await axios.post(
+        `${API_BASE_URL}/soft_desktop/get_adv`,
+        params,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+
+      if (response.data?.code === 1 && Array.isArray(response.data?.data)) {
+        return response.data.data;
+      }
+      return [];
+    } catch (error) {
+      console.error(`Fetch ad failed for position ${position}:`, error);
+      return [];
+    }
+  }
+};

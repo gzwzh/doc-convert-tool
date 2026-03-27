@@ -42,6 +42,7 @@ def get_bundled_libreoffice_path() -> Optional[str]:
           └── program/soffice.exe
     """
     executable_name = 'soffice.exe' if sys.platform == 'win32' else 'soffice'
+    dev_resource_dir = 'libreoffice' if sys.platform == 'win32' else 'libreoffice-linux'
 
     if is_frozen():
         # 打包环境: 从exe所在目录向上找到resources，再找libreoffice
@@ -55,7 +56,7 @@ def get_bundled_libreoffice_path() -> Optional[str]:
     else:
         # 开发环境: get_app_base_path() 已经是项目根目录
         project_root = get_app_base_path()
-        libreoffice_path = os.path.join(project_root, 'resources', 'libreoffice', 'program', executable_name)
+        libreoffice_path = os.path.join(project_root, 'resources', dev_resource_dir, 'program', executable_name)
         if os.path.exists(libreoffice_path):
             return libreoffice_path
     

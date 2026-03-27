@@ -42,6 +42,24 @@ function getBackendExecutablePath(appPath) {
   return path.join(backendDir, executableName);
 }
 
+function getWindowIconPath() {
+  if (isWindows()) {
+    return path.join(__dirname, '..', 'frontend', 'public', 'app.ico');
+  }
+
+  const candidates = isDev
+    ? [
+        path.join(__dirname, '..', 'build', 'icons', '512x512.png'),
+        path.join(__dirname, '..', 'build', 'icons', '256x256.png'),
+      ]
+    : [
+        path.join(process.resourcesPath, 'icons', '512x512.png'),
+        path.join(process.resourcesPath, 'icons', '256x256.png'),
+      ];
+
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
 function openExternalUrl(url) {
   if (isWsl()) {
     return new Promise((resolve, reject) => {
@@ -229,6 +247,7 @@ function startBackend() {
 
 // 创建主窗口
 function createWindow() {
+  const windowIconPath = getWindowIconPath();
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -242,7 +261,7 @@ function createWindow() {
       webSecurity: false, // 允许加载本地资源
       partition: 'persist:main' // 使用持久化分区，方便后续清理缓存
     },
-    icon: isWindows() ? path.join(__dirname, '..', 'frontend', 'public', 'app.ico') : undefined,
+    icon: windowIconPath,
     show: false,
     backgroundColor: '#ffffff',
     titleBarStyle: 'hidden' // 隐藏标题栏
@@ -307,6 +326,8 @@ app.whenReady().then(async () => {
   console.log('应用启动中...');
   console.log('应用路径:', getAppPath());
   console.log('开发模式:', isDev);
+
+  app.setName('文档转换器');
 
   // 启动后端服务
   startBackend();

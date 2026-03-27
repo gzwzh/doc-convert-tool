@@ -175,5 +175,42 @@ export const AuthService = {
   } catch {
       return false;
     }
+  },
+
+  async fetchCustomUrl() {
+    const url = `${getAuthBaseUrl()}/soft_desktop/get_custom_url`;
+
+    try {
+      const res = await axios.post(url, {}, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+
+      if (res.data?.code === 1 && res.data?.data?.url) {
+        return res.data.data.url;
+      }
+      return null;
+    } catch (error) {
+      console.error('Fetch custom URL error:', error);
+      return null;
+    }
+  },
+
+  async fetchFeedbackUrl() {
+    const url = `${getAuthBaseUrl()}/soft_desktop/get_feedback_url`;
+    const softNumber = '10031';
+
+    try {
+      const res = await axios.post(url, {}, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+
+      if (res.data?.code === 1 && res.data?.data?.url) {
+        return `${res.data.data.url}${softNumber}`;
+      }
+      return null;
+    } catch (error) {
+      console.error('Fetch feedback URL error:', error);
+      return null;
+    }
   }
 };

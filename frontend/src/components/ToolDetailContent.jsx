@@ -819,15 +819,17 @@ function ToolDetailContent({ toolName, onBack }) {
                 options.watermark_position = watermarkOptions.position;
               }
               if (target === 'PDF') {
-                options.page_size = convertOptions.pageSize;
-                options.orientation = convertOptions.orientation;
-                options.page_range = convertOptions.docxPdfPageRange;
-                options.watermark_text = watermarkOptions.text;
-                options.watermark_opacity = watermarkOptions.opacity;
-                options.watermark_size = watermarkOptions.size;
-                options.watermark_color = watermarkOptions.color;
-                options.watermark_angle = watermarkOptions.angle;
-                options.watermark_position = watermarkOptions.position;
+                if (convertOptions.docxPdfPageRange?.trim()) {
+                  options.page_range = convertOptions.docxPdfPageRange.trim();
+                }
+                if (watermarkOptions.text?.trim()) {
+                  options.watermark_text = watermarkOptions.text.trim();
+                  options.watermark_opacity = watermarkOptions.opacity;
+                  options.watermark_size = watermarkOptions.size;
+                  options.watermark_color = watermarkOptions.color;
+                  options.watermark_angle = watermarkOptions.angle;
+                  options.watermark_position = watermarkOptions.position;
+                }
               }
             }
             

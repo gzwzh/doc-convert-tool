@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import AdBanner from './AdBanner';
+import QuestionFeedback from './QuestionFeedback';
+import SoftwareCustomization from './SoftwareCustomization';
 import '../App.css';
 
 function ToolSidebar({
@@ -116,8 +119,8 @@ function ToolSidebar({
             </div>
             <button type="button" className="sidebar-mobile-close" onClick={handleClose}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           </div>
@@ -126,8 +129,8 @@ function ToolSidebar({
         <div className="sidebar-search-wrapper" ref={searchRef}>
           <div className="sidebar-search-input-container">
             <svg className="sidebar-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input
               type="text"
@@ -186,29 +189,26 @@ function ToolSidebar({
               <span className="sidebar-text">{t(`categories.${section.name}`)}</span>
               {activeSection?.name === section.name && (
                 <svg className="sidebar-active-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6"></polyline>
+                  <polyline points="9 18 15 12 9 6" />
                 </svg>
               )}
             </div>
           ))}
         </nav>
+
         <div className="sidebar-bottom-actions">
-          <button type="button" className="sidebar-link-btn">
-            <span>软件定制</span>
-            <span className="sidebar-link-arrow">↗</span>
-          </button>
-          <button type="button" className="sidebar-link-btn">
-            <span>问题反馈</span>
-            <span className="sidebar-link-arrow">↗</span>
-          </button>
+          <SoftwareCustomization />
+          <QuestionFeedback />
         </div>
 
         <div className="sidebar-ad-banner">
-          <div className="sidebar-promo-card">
-            <div className="sidebar-promo-badge">AI</div>
-            <div className="sidebar-promo-title">探索 AI</div>
-            <div className="sidebar-promo-subtitle">鲲穹赋能未来</div>
-          </div>
+          <AdBanner
+            positions={['adv_position_04', 'adv_position_05']}
+            ratio={2 / 3}
+            placeholderLabel="广告位"
+            interval={5000}
+            width="100%"
+          />
         </div>
       </aside>
     </>
